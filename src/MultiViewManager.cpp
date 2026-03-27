@@ -6,35 +6,51 @@
 
 MultiViewManager::MultiViewManager() = default;
 
-// ---- private helper ----
+// ── private helper ────────────────────────────────────────────────────────────
 
+// Linear scan through the flat records vector.
+// Returns a pointer into the vector (valid until records is modified).
+// Used to:  (a) detect duplicate IDs before insert
+//           (b) retrieve the full Student struct for key reconstruction on remove
 Student* MultiViewManager::findById(const std::string& id) {
     for (Student& s : records)
         if (s.id == id) return &s;
     return nullptr;
 }
 
-// ---- atomic insert with rollback ----
+// ── atomic insert with duplicate guard ───────────────────────────────────────
 
 bool MultiViewManager::addStudent(const Student& student) {
-    if (findById(student.id)) return false; // duplicate ID
+    // Reject duplicates before touching any tree.
+    if (findById(student.id)) return false;
 
+    // Insert into all three trees.
+    // TODO (Ibad): wrap each in a try/catch and rollback the earlier inserts
+    // if a later one throws, then return false.
     nameIdx.insert(student);
     cgpaIdx.insert(student);
     yearIdx.insert(student);
+
+    // Keep the canonical copy in the flat records vector.
     records.push_back(student);
     return true;
 }
 
+// ── atomic remove ─────────────────────────────────────────────────────────────
+
 bool MultiViewManager::removeStudent(const std::string& id) {
+    // findById gives us the full Student — needed to reconstruct the tree keys.
     Student* s = findById(id);
     if (!s) return false;
 
-    Student copy = *s;
+    Student copy = *s; // capture before erasing from records
+
+    // Remove from each index using the original field values.
     nameIdx.remove(copy.name, id);
     cgpaIdx.remove(copy.cgpa, id);
     yearIdx.remove(copy.batchYear, id);
 
+    // Erase from the flat records vector.
     records.erase(
         std::remove_if(records.begin(), records.end(),
             [&](const Student& r) { return r.id == id; }),
@@ -42,8 +58,9 @@ bool MultiViewManager::removeStudent(const std::string& id) {
     return true;
 }
 
-// ---- single-view lookups ----
+// ── single-view lookups ───────────────────────────────────────────────────────
 
+// Delegates directly — no logic here, just routing to the right index.
 std::vector<Student> MultiViewManager::searchByNamePrefix(const std::string& prefix) const {
     return nameIdx.prefixSearch(prefix);
 }
@@ -60,19 +77,22 @@ std::vector<Student> MultiViewManager::searchByYearRange(int startYear, int endY
     return yearIdx.rangeByYear(startYear, endYear);
 }
 
-// ---- cross-view query ----
-// Primary filter: year (via YearIndex), then CGPA and name prefix inline.
-// This avoids a full scan and reuses each index's O(log n) range walk.
+// ── cross-view query ──────────────────────────────────────────────────────────
 
+// Strategy: YearIndex is the primary filter (usually the smallest result set).
+// We get the year-filtered list from the tree, then check CGPA and name prefix
+// inline — no need for a separate full scan.
 std::vector<Student> MultiViewManager::crossQuery(int year, double minCGPA,
                                                    const std::string& namePrefix) const {
     std::vector<Student> byYear = yearIdx.getByYear(year);
     std::vector<Student> result;
 
     for (const Student& s : byYear) {
+        // CGPA filter
         if (s.cgpa < minCGPA) continue;
+
+        // Case-insensitive name prefix filter
         if (!namePrefix.empty()) {
-            // case-insensitive prefix check
             if (s.name.size() < namePrefix.size()) continue;
             bool match = true;
             for (size_t i = 0; i < namePrefix.size(); ++i) {
@@ -83,13 +103,15 @@ std::vector<Student> MultiViewManager::crossQuery(int year, double minCGPA,
             }
             if (!match) continue;
         }
+
         result.push_back(s);
     }
     return result;
 }
 
-// ---- display ----
+// ── display ───────────────────────────────────────────────────────────────────
 
+// getAllSorted() returns students in ascending name order (inorder on NameIndex).
 void MultiViewManager::printAll() const {
     std::vector<Student> sorted = nameIdx.getAllSorted();
     for (const Student& s : sorted)
@@ -97,7 +119,11 @@ void MultiViewManager::printAll() const {
                   << "\t" << s.batchYear << "\t" << s.department << "\n";
 }
 
+// ── benchmark ─────────────────────────────────────────────────────────────────
+// TODO (Member 4 — Sohaib): insert n random students, then time:
+//   • cgpaIdx.getInRange  vs  a sorted std::vector doing binary search
+//   • nameIdx.prefixSearch vs  a linear scan on a std::vector
+// Print wall-clock time for each using std::chrono::high_resolution_clock.
 void MultiViewManager::runBenchmark(int n) const {
-    // TODO: insert n students, time RBT queries vs sorted-vector queries
     (void)n;
 }
