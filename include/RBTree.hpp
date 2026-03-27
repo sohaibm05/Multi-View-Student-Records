@@ -33,6 +33,9 @@ public:
     Node* lowerBound(const Key& key) const;
     Node* upperBound(const Key& key) const;
 
+    Node* front() const; // minimum-key node (leftmost)
+    Node* back()  const; // maximum-key node (rightmost)
+
     void inorder(std::function<void(const Key&, const Value&)> visit) const;
 
     int size() const { return nodeCount; }
@@ -40,7 +43,7 @@ public:
 
 protected:
     Node* root;
-    Node* NIL;
+    Node* NIL; // sentinel nil node
     int nodeCount;
 
     void leftRotate(Node* x);
@@ -52,3 +55,5 @@ protected:
     Node* maximum(Node* x) const;
     void destroyTree(Node* x);
 };
+
+#include "../src/RBTree.tpp"

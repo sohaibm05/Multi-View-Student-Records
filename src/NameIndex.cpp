@@ -1,6 +1,6 @@
 // Member 1
 
-#include "include\NameIndex.hpp"
+#include "NameIndex.hpp"
 
 NameIndex::NameIndex() = default;
 
