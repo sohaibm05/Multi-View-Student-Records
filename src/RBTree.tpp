@@ -54,12 +54,46 @@ void RBTree<Key, Value>::destroyTree(Node* x) {
 // After rotating: if you have augmentation fields (subtreeSize, maxEnd, etc.)
 // update x first (it's now lower), then y (it's now higher).
 template <typename Key, typename Value>
-void RBTree<Key, Value>::leftRotate(Node* x) {}
+void RBTree<Key, Value>::leftRotate(Node* x) {
+    Node* y = x->right;          // 1. y is x's right child
+
+    x->right = y->left;          // 2. move y's left subtree to x's right
+    if (y->left != NIL)          // 3. update parent pointer if not NIL
+        y->left->parent = x;
+
+    y->parent = x->parent;       // 4. link y to x's old parent
+    if (x->parent == NIL)        // 5. x was root → y becomes new root
+        root = y;
+    else if (x == x->parent->left)
+        x->parent->left = y;     //    x was left child
+    else
+        x->parent->right = y;    //    x was right child
+
+    y->left = x;                 // 6. x becomes y's left child
+    x->parent = y;               // 7. update x's parent
+}
 
 // ── rightRotate ───────────────────────────────────────────────────────────────
 // Mirror of leftRotate.  Replace every "left↔right" in the steps above.
 template <typename Key, typename Value>
-void RBTree<Key, Value>::rightRotate(Node* x) {}
+void RBTree<Key, Value>::rightRotate(Node* x) {
+    Node* y = x->left;           // 1. y is x's left child
+
+    x->left = y->right;          // 2. move y's right subtree to x's left
+    if (y->right != NIL)         // 3. update parent pointer if not NIL
+        y->right->parent = x;
+
+    y->parent = x->parent;       // 4. link y to x's old parent
+    if (x->parent == NIL)        // 5. x was root → y becomes new root
+        root = y;
+    else if (x == x->parent->right)
+        x->parent->right = y;    //    x was right child
+    else
+        x->parent->left = y;     //    x was left child
+
+    y->right = x;                // 6. x becomes y's right child
+    x->parent = y;               // 7. update x's parent
+}
 
 // ── insert ────────────────────────────────────────────────────────────────────
 // 1. Allocate a new Node(key, value) coloured RED.
