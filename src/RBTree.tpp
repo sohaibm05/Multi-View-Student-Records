@@ -111,12 +111,22 @@ void RBTree<Key, Value>::transplant(Node* u, Node* v) {}
 // Walk x->left until hitting NIL.  The last real node is the minimum.
 // Used internally by remove (to find in-order successor) and by front().
 template <typename Key, typename Value>
-typename RBTree<Key, Value>::Node* RBTree<Key, Value>::minimum(Node* x) const { return nullptr; }
+typename RBTree<Key, Value>::Node* RBTree<Key, Value>::minimum(Node* x) const {
+    if (x == NIL) return nullptr;
+    while (x->left != NIL)
+        x = x->left;
+    return x;
+}
 
 // ── maximum ───────────────────────────────────────────────────────────────────
 // Walk x->right until hitting NIL.  Mirror of minimum.
 template <typename Key, typename Value>
-typename RBTree<Key, Value>::Node* RBTree<Key, Value>::maximum(Node* x) const { return nullptr; }
+typename RBTree<Key, Value>::Node* RBTree<Key, Value>::maximum(Node* x) const {
+    if (x == NIL) return nullptr;
+    while (x->right != NIL)
+        x = x->right;
+    return x;
+}
 
 // ── find ──────────────────────────────────────────────────────────────────────
 // Standard BST search:
@@ -126,7 +136,18 @@ typename RBTree<Key, Value>::Node* RBTree<Key, Value>::maximum(Node* x) const { 
 //     else                   → go right
 // Return nullptr if not found.
 template <typename Key, typename Value>
-typename RBTree<Key, Value>::Node* RBTree<Key, Value>::find(const Key& key) const { return nullptr; }
+typename RBTree<Key, Value>::Node* RBTree<Key, Value>::find(const Key& key) const {
+    Node* current = root;
+    while (current != NIL) {
+        if (key == current->key)
+            return current;
+        else if (key < current->key)
+            current = current->left;
+        else
+            current = current->right;
+    }
+    return nullptr;
+}
 
 // ── lowerBound ────────────────────────────────────────────────────────────────
 // Find the first node with key >= the argument (leftmost node that could match).
