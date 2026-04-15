@@ -12,7 +12,15 @@
 // 4. Set root = NIL (empty tree).
 // 5. nodeCount = 0.
 template <typename Key, typename Value>
-RBTree<Key, Value>::RBTree() {}
+RBTree<Key, Value>::RBTree() {
+    NIL = new Node(Key{}, Value{});  // sentinel leaf — shared by all null positions
+    NIL->color  = Color::BLACK;      // invariant 3: every leaf (NIL) is BLACK
+    NIL->left   = NIL;               // NIL points to itself
+    NIL->right  = NIL;
+    NIL->parent = NIL;
+    root      = NIL;                 // empty tree: root IS the NIL sentinel
+    nodeCount = 0;
+}
 
 // ── Destructor ────────────────────────────────────────────────────────────────
 // Call destroyTree(root) to free every real node, then delete the NIL sentinel.
