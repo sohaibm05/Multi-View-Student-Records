@@ -105,7 +105,39 @@ void RBTree<Key, Value>::rightRotate(Node* x) {
 // 5. Increment nodeCount.
 // 6. Call insertFixup(newNode) to restore RB invariants.
 template <typename Key, typename Value>
-void RBTree<Key, Value>::insert(const Key& key, const Value& value) {}
+void RBTree<Key, Value>::insert(const Key& key, const Value& value) {
+    // BST walk to find insertion point; track parent with trailing pointer
+    Node* parent  = NIL;
+    Node* current = root;
+    while (current != NIL) {
+        parent = current;
+        if (key == current->key) {   // duplicate: update value, no structural change
+            current->value = value;
+            return;
+        } else if (key < current->key)
+            current = current->left;
+        else
+            current = current->right;
+    }
+
+    // Allocate new RED node
+    Node* z  = new Node(key, value);
+    z->left  = NIL;
+    z->right = NIL;
+    z->color = Color::RED;
+    z->parent = parent;
+
+    // Link into tree
+    if (parent == NIL)             // tree was empty
+        root = z;
+    else if (key < parent->key)
+        parent->left = z;
+    else
+        parent->right = z;
+
+    ++nodeCount;
+    insertFixup(z);                // restore RB invariants
+}
 
 // ── insertFixup ───────────────────────────────────────────────────────────────
 // Loop while z's parent is RED (violation of invariant 4).
