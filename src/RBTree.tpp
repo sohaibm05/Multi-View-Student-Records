@@ -25,13 +25,21 @@ RBTree<Key, Value>::RBTree() {
 // ── Destructor ────────────────────────────────────────────────────────────────
 // Call destroyTree(root) to free every real node, then delete the NIL sentinel.
 template <typename Key, typename Value>
-RBTree<Key, Value>::~RBTree() {}
+RBTree<Key, Value>::~RBTree() {
+    destroyTree(root);
+    delete NIL;
+}
 
 // ── destroyTree ───────────────────────────────────────────────────────────────
 // Post-order traversal: destroy left subtree, destroy right subtree, delete x.
 // Stop when x == NIL (base case — do NOT delete the sentinel here).
 template <typename Key, typename Value>
-void RBTree<Key, Value>::destroyTree(Node* x) {}
+void RBTree<Key, Value>::destroyTree(Node* x) {
+    if (x == NIL) return;
+    destroyTree(x->left);
+    destroyTree(x->right);
+    delete x;
+}
 
 // ── leftRotate ────────────────────────────────────────────────────────────────
 // Standard left rotation around node x (see diagram in RBTree.hpp).
