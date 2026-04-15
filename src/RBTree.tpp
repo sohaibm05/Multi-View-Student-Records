@@ -381,7 +381,8 @@ typename RBTree<Key, Value>::Node* RBTree<Key, Value>::maximum(Node* x) const {
 template <typename Key, typename Value>
 typename RBTree<Key, Value>::Node* RBTree<Key, Value>::find(const Key& key) const {
     Node* current = root;
-    while (current != NIL) {
+    while (current != NIL) 
+    {
         if (key == current->key)
             return current;
         else if (key < current->key)
@@ -397,23 +398,61 @@ typename RBTree<Key, Value>::Node* RBTree<Key, Value>::find(const Key& key) cons
 // Algorithm: BST walk; whenever you go right, remember the current node as a
 // candidate.  When you fall off the tree, return the last candidate (or nullptr).
 template <typename Key, typename Value>
-typename RBTree<Key, Value>::Node* RBTree<Key, Value>::lowerBound(const Key& key) const { return nullptr; }
+typename RBTree<Key, Value>::Node* RBTree<Key, Value>::lowerBound(const Key& key) const {
+    Node* result  = nullptr;
+    Node* current = root;
+    while (current != NIL) 
+    {
+        if (current->key >= key) 
+        {
+            result  = current;   // current is a candidate (key >= target)
+            current = current->left;  // try to find an earlier one
+        } 
+        else 
+        {
+            current = current->right; // too small, go right
+        }
+    }
+    return result;
+}
 
 // ── upperBound ────────────────────────────────────────────────────────────────
 // Same as lowerBound but returns the first node with key > the argument.
 // Only difference: candidate is updated when node->key > key (not >=).
 template <typename Key, typename Value>
-typename RBTree<Key, Value>::Node* RBTree<Key, Value>::upperBound(const Key& key) const { return nullptr; }
+typename RBTree<Key, Value>::Node* RBTree<Key, Value>::upperBound(const Key& key) const {
+    Node* result  = nullptr;
+    Node* current = root;
+    while (current != NIL) 
+    {
+        if (current->key > key) 
+        {
+            result  = current;   // candidate (key strictly greater)
+            current = current->left;  // try to find an earlier one
+        } 
+        else 
+        {
+            current = current->right; // not strictly greater, go right
+        }
+    }
+    return result;
+}
 
 // ── front ─────────────────────────────────────────────────────────────────────
 // Return minimum(root).  Return nullptr when the tree is empty (root == NIL).
 template <typename Key, typename Value>
-typename RBTree<Key, Value>::Node* RBTree<Key, Value>::front() const { return minimum(root); }
+typename RBTree<Key, Value>::Node* RBTree<Key, Value>::front() const 
+{ 
+    return minimum(root); 
+}
 
 // ── back ──────────────────────────────────────────────────────────────────────
 // Return maximum(root).  Return nullptr when the tree is empty (root == NIL).
 template <typename Key, typename Value>
-typename RBTree<Key, Value>::Node* RBTree<Key, Value>::back() const { return maximum(root); }
+typename RBTree<Key, Value>::Node* RBTree<Key, Value>::back() const 
+{ 
+    return maximum(root); 
+}
 
 // ── inorder ───────────────────────────────────────────────────────────────────
 // Recursive in-order traversal: left subtree → visit current → right subtree.
@@ -421,7 +460,8 @@ typename RBTree<Key, Value>::Node* RBTree<Key, Value>::back() const { return max
 // Helper signature (private, optional): inorderHelper(Node* x, visit)
 template <typename Key, typename Value>
 void RBTree<Key, Value>::inorder(std::function<void(const Key&, const Value&)> visit) const {
-    std::function<void(Node*)> helper = [&](Node* x) {
+    std::function<void(Node*)> helper = [&](Node* x) 
+    {
         if (x == NIL) return;
         helper(x->left);
         visit(x->key, x->value);
