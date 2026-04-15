@@ -146,7 +146,55 @@ void RBTree<Key, Value>::insert(const Key& key, const Value& value) {
 // After the loop, force root to BLACK (invariant 2).
 // Reference: CLRS 4th ed. §13.3, RB-INSERT-FIXUP pseudocode.
 template <typename Key, typename Value>
-void RBTree<Key, Value>::insertFixup(Node* z) {}
+void RBTree<Key, Value>::insertFixup(Node* z) {
+    while (z->parent->color == Color::RED) {         // violation: RED node has RED parent
+        if (z->parent == z->parent->parent->left) {  // parent is a left child
+            Node* uncle = z->parent->parent->right;
+
+            if (uncle->color == Color::RED) {
+                // ── Case 1: uncle is RED ──────────────────────────────────────
+                // Recolour parent + uncle BLACK, grandparent RED, move z up
+                z->parent->color         = Color::BLACK;
+                uncle->color             = Color::BLACK;
+                z->parent->parent->color = Color::RED;
+                z = z->parent->parent;               // problem may have moved up
+            } else {
+                if (z == z->parent->right) {
+                    // ── Case 2: uncle BLACK, z is inner child (triangle) ──────
+                    // Left-rotate parent to turn it into a line → fall to Case 3
+                    z = z->parent;
+                    leftRotate(z);
+                }
+                // ── Case 3: uncle BLACK, z is outer child (line) ─────────────
+                // Recolour + right-rotate grandparent; loop will terminate
+                z->parent->color         = Color::BLACK;
+                z->parent->parent->color = Color::RED;
+                rightRotate(z->parent->parent);
+            }
+        } else {                                     // parent is a right child (mirror)
+            Node* uncle = z->parent->parent->left;
+
+            if (uncle->color == Color::RED) {
+                // ── Case 1 (mirror) ───────────────────────────────────────────
+                z->parent->color         = Color::BLACK;
+                uncle->color             = Color::BLACK;
+                z->parent->parent->color = Color::RED;
+                z = z->parent->parent;
+            } else {
+                if (z == z->parent->left) {
+                    // ── Case 2 (mirror) ───────────────────────────────────────
+                    z = z->parent;
+                    rightRotate(z);
+                }
+                // ── Case 3 (mirror) ───────────────────────────────────────────
+                z->parent->color         = Color::BLACK;
+                z->parent->parent->color = Color::RED;
+                leftRotate(z->parent->parent);
+            }
+        }
+    }
+    root->color = Color::BLACK;  // invariant 2: root is always BLACK
+}
 
 // ── remove ────────────────────────────────────────────────────────────────────
 // 1. Find the node y to delete (may be the target or its in-order successor).
