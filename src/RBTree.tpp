@@ -105,7 +105,39 @@ void RBTree<Key, Value>::rightRotate(Node* x) {
 // 5. Increment nodeCount.
 // 6. Call insertFixup(newNode) to restore RB invariants.
 template <typename Key, typename Value>
-void RBTree<Key, Value>::insert(const Key& key, const Value& value) {}
+void RBTree<Key, Value>::insert(const Key& key, const Value& value) {
+    // BST walk to find insertion point; track parent with trailing pointer
+    Node* parent  = NIL;
+    Node* current = root;
+    while (current != NIL) {
+        parent = current;
+        if (key == current->key) {   // duplicate: update value, no structural change
+            current->value = value;
+            return;
+        } else if (key < current->key)
+            current = current->left;
+        else
+            current = current->right;
+    }
+
+    // Allocate new RED node
+    Node* z  = new Node(key, value);
+    z->left  = NIL;
+    z->right = NIL;
+    z->color = Color::RED;
+    z->parent = parent;
+
+    // Link into tree
+    if (parent == NIL)             // tree was empty
+        root = z;
+    else if (key < parent->key)
+        parent->left = z;
+    else
+        parent->right = z;
+
+    ++nodeCount;
+    insertFixup(z);                // restore RB invariants
+}
 
 // ── insertFixup ───────────────────────────────────────────────────────────────
 // Loop while z's parent is RED (violation of invariant 4).
@@ -114,7 +146,55 @@ void RBTree<Key, Value>::insert(const Key& key, const Value& value) {}
 // After the loop, force root to BLACK (invariant 2).
 // Reference: CLRS 4th ed. §13.3, RB-INSERT-FIXUP pseudocode.
 template <typename Key, typename Value>
-void RBTree<Key, Value>::insertFixup(Node* z) {}
+void RBTree<Key, Value>::insertFixup(Node* z) {
+    while (z->parent->color == Color::RED) {         // violation: RED node has RED parent
+        if (z->parent == z->parent->parent->left) {  // parent is a left child
+            Node* uncle = z->parent->parent->right;
+
+            if (uncle->color == Color::RED) {
+                // ── Case 1: uncle is RED ──────────────────────────────────────
+                // Recolour parent + uncle BLACK, grandparent RED, move z up
+                z->parent->color         = Color::BLACK;
+                uncle->color             = Color::BLACK;
+                z->parent->parent->color = Color::RED;
+                z = z->parent->parent;               // problem may have moved up
+            } else {
+                if (z == z->parent->right) {
+                    // ── Case 2: uncle BLACK, z is inner child (triangle) ──────
+                    // Left-rotate parent to turn it into a line → fall to Case 3
+                    z = z->parent;
+                    leftRotate(z);
+                }
+                // ── Case 3: uncle BLACK, z is outer child (line) ─────────────
+                // Recolour + right-rotate grandparent; loop will terminate
+                z->parent->color         = Color::BLACK;
+                z->parent->parent->color = Color::RED;
+                rightRotate(z->parent->parent);
+            }
+        } else {                                     // parent is a right child (mirror)
+            Node* uncle = z->parent->parent->left;
+
+            if (uncle->color == Color::RED) {
+                // ── Case 1 (mirror) ───────────────────────────────────────────
+                z->parent->color         = Color::BLACK;
+                uncle->color             = Color::BLACK;
+                z->parent->parent->color = Color::RED;
+                z = z->parent->parent;
+            } else {
+                if (z == z->parent->left) {
+                    // ── Case 2 (mirror) ───────────────────────────────────────
+                    z = z->parent;
+                    rightRotate(z);
+                }
+                // ── Case 3 (mirror) ───────────────────────────────────────────
+                z->parent->color         = Color::BLACK;
+                z->parent->parent->color = Color::RED;
+                leftRotate(z->parent->parent);
+            }
+        }
+    }
+    root->color = Color::BLACK;  // invariant 2: root is always BLACK
+}
 
 // ── remove ────────────────────────────────────────────────────────────────────
 // 1. Find the node y to delete (may be the target or its in-order successor).
@@ -126,7 +206,51 @@ void RBTree<Key, Value>::insertFixup(Node* z) {}
 // Returns false if key is not in the tree.
 // Reference: CLRS 4th ed. §13.4, RB-DELETE pseudocode.
 template <typename Key, typename Value>
-bool RBTree<Key, Value>::remove(const Key& key) { return false; }
+bool RBTree<Key, Value>::remove(const Key& key) {
+    // Find the node to delete
+    Node* z = root;
+    while (z != NIL) {
+        if      (key == z->key) break;
+        else if (key  < z->key) z = z->left;
+        else                    z = z->right;
+    }
+    if (z == NIL) return false;    // key not found
+
+    Node* y = z;                   // y = node to splice out
+    Node* x;                       // x = node that moves into y's place
+    Color yOriginalColor = y->color;
+
+    if (z->left == NIL) {          // Case A: no left child
+        x = z->right;
+        transplant(z, z->right);
+    } else if (z->right == NIL) {  // Case B: no right child
+        x = z->left;
+        transplant(z, z->left);
+    } else {                       // Case C: two children — use in-order successor
+        y = minimum(z->right);     // leftmost node in right subtree
+        yOriginalColor = y->color;
+        x = y->right;
+        if (y->parent == z) {
+            x->parent = y;         // x may be NIL sentinel; safe to update its parent
+        } else {
+            transplant(y, y->right);
+            y->right = z->right;
+            y->right->parent = y;
+        }
+        transplant(z, y);
+        y->left = z->left;
+        y->left->parent = y;
+        y->color = z->color;       // successor inherits deleted node's colour
+    }
+
+    delete z;
+    --nodeCount;
+
+    if (yOriginalColor == Color::BLACK)  // removing a BLACK node breaks black-height
+        deleteFixup(x);
+
+    return true;
+}
 
 // ── deleteFixup ───────────────────────────────────────────────────────────────
 // Loop while x != root and x is BLACK (x has a "double-black" problem).
@@ -138,7 +262,76 @@ bool RBTree<Key, Value>::remove(const Key& key) { return false; }
 // After loop: set x->colour = BLACK to absorb the extra black.
 // Reference: CLRS 4th ed. §13.4, RB-DELETE-FIXUP pseudocode.
 template <typename Key, typename Value>
-void RBTree<Key, Value>::deleteFixup(Node* x) {}
+void RBTree<Key, Value>::deleteFixup(Node* x) {
+    while (x != root && x->color == Color::BLACK) {
+        if (x == x->parent->left) {          // x is a left child
+            Node* w = x->parent->right;      // w is x's sibling
+
+            if (w->color == Color::RED) {
+                // ── Case 1: sibling RED ───────────────────────────────────────
+                // Recolour + rotate; converts to Case 2, 3, or 4
+                w->color           = Color::BLACK;
+                x->parent->color   = Color::RED;
+                leftRotate(x->parent);
+                w = x->parent->right;        // new sibling after rotation
+            }
+
+            if (w->left->color == Color::BLACK && w->right->color == Color::BLACK) {
+                // ── Case 2: sibling BLACK, both nephews BLACK ─────────────────
+                // Push double-black up; recolour sibling RED
+                w->color = Color::RED;
+                x = x->parent;
+            } else {
+                if (w->right->color == Color::BLACK) {
+                    // ── Case 3: sibling BLACK, far nephew BLACK, near nephew RED
+                    // Rotate sibling to convert to Case 4
+                    w->left->color = Color::BLACK;
+                    w->color       = Color::RED;
+                    rightRotate(w);
+                    w = x->parent->right;
+                }
+                // ── Case 4: sibling BLACK, far nephew RED ─────────────────────
+                // Rotate + recolour; terminates loop
+                w->color           = x->parent->color;
+                x->parent->color   = Color::BLACK;
+                w->right->color    = Color::BLACK;
+                leftRotate(x->parent);
+                x = root;                    // done
+            }
+        } else {                             // x is a right child (mirror)
+            Node* w = x->parent->left;
+
+            if (w->color == Color::RED) {
+                // ── Case 1 (mirror) ───────────────────────────────────────────
+                w->color           = Color::BLACK;
+                x->parent->color   = Color::RED;
+                rightRotate(x->parent);
+                w = x->parent->left;
+            }
+
+            if (w->right->color == Color::BLACK && w->left->color == Color::BLACK) {
+                // ── Case 2 (mirror) ───────────────────────────────────────────
+                w->color = Color::RED;
+                x = x->parent;
+            } else {
+                if (w->left->color == Color::BLACK) {
+                    // ── Case 3 (mirror) ───────────────────────────────────────
+                    w->right->color = Color::BLACK;
+                    w->color        = Color::RED;
+                    leftRotate(w);
+                    w = x->parent->left;
+                }
+                // ── Case 4 (mirror) ───────────────────────────────────────────
+                w->color           = x->parent->color;
+                x->parent->color   = Color::BLACK;
+                w->left->color     = Color::BLACK;
+                rightRotate(x->parent);
+                x = root;
+            }
+        }
+    }
+    x->color = Color::BLACK;    // absorb any remaining double-black
+}
 
 // ── transplant ────────────────────────────────────────────────────────────────
 // Replace the subtree rooted at u with the subtree rooted at v:
@@ -147,7 +340,15 @@ void RBTree<Key, Value>::deleteFixup(Node* x) {}
 //   then v->parent = u->parent
 // Note: does NOT update v->left or v->right — caller handles that.
 template <typename Key, typename Value>
-void RBTree<Key, Value>::transplant(Node* u, Node* v) {}
+void RBTree<Key, Value>::transplant(Node* u, Node* v) {
+    if (u->parent == NIL)          // u was root → v becomes new root
+        root = v;
+    else if (u == u->parent->left) // u was left child
+        u->parent->left = v;
+    else                           // u was right child
+        u->parent->right = v;
+    v->parent = u->parent;         // always update v's parent (safe even if v == NIL)
+}
 
 // ── minimum ───────────────────────────────────────────────────────────────────
 // Walk x->left until hitting NIL.  The last real node is the minimum.
@@ -180,7 +381,8 @@ typename RBTree<Key, Value>::Node* RBTree<Key, Value>::maximum(Node* x) const {
 template <typename Key, typename Value>
 typename RBTree<Key, Value>::Node* RBTree<Key, Value>::find(const Key& key) const {
     Node* current = root;
-    while (current != NIL) {
+    while (current != NIL) 
+    {
         if (key == current->key)
             return current;
         else if (key < current->key)
@@ -196,27 +398,74 @@ typename RBTree<Key, Value>::Node* RBTree<Key, Value>::find(const Key& key) cons
 // Algorithm: BST walk; whenever you go right, remember the current node as a
 // candidate.  When you fall off the tree, return the last candidate (or nullptr).
 template <typename Key, typename Value>
-typename RBTree<Key, Value>::Node* RBTree<Key, Value>::lowerBound(const Key& key) const { return nullptr; }
+typename RBTree<Key, Value>::Node* RBTree<Key, Value>::lowerBound(const Key& key) const {
+    Node* result  = nullptr;
+    Node* current = root;
+    while (current != NIL) 
+    {
+        if (current->key >= key) 
+        {
+            result  = current;   // current is a candidate (key >= target)
+            current = current->left;  // try to find an earlier one
+        } 
+        else 
+        {
+            current = current->right; // too small, go right
+        }
+    }
+    return result;
+}
 
 // ── upperBound ────────────────────────────────────────────────────────────────
 // Same as lowerBound but returns the first node with key > the argument.
 // Only difference: candidate is updated when node->key > key (not >=).
 template <typename Key, typename Value>
-typename RBTree<Key, Value>::Node* RBTree<Key, Value>::upperBound(const Key& key) const { return nullptr; }
+typename RBTree<Key, Value>::Node* RBTree<Key, Value>::upperBound(const Key& key) const {
+    Node* result  = nullptr;
+    Node* current = root;
+    while (current != NIL) 
+    {
+        if (current->key > key) 
+        {
+            result  = current;   // candidate (key strictly greater)
+            current = current->left;  // try to find an earlier one
+        } 
+        else 
+        {
+            current = current->right; // not strictly greater, go right
+        }
+    }
+    return result;
+}
 
 // ── front ─────────────────────────────────────────────────────────────────────
 // Return minimum(root).  Return nullptr when the tree is empty (root == NIL).
 template <typename Key, typename Value>
-typename RBTree<Key, Value>::Node* RBTree<Key, Value>::front() const { return minimum(root); }
+typename RBTree<Key, Value>::Node* RBTree<Key, Value>::front() const 
+{ 
+    return minimum(root); 
+}
 
 // ── back ──────────────────────────────────────────────────────────────────────
 // Return maximum(root).  Return nullptr when the tree is empty (root == NIL).
 template <typename Key, typename Value>
-typename RBTree<Key, Value>::Node* RBTree<Key, Value>::back() const { return maximum(root); }
+typename RBTree<Key, Value>::Node* RBTree<Key, Value>::back() const 
+{ 
+    return maximum(root); 
+}
 
 // ── inorder ───────────────────────────────────────────────────────────────────
 // Recursive in-order traversal: left subtree → visit current → right subtree.
 // Skip NIL nodes.  Produces keys in ascending order.
 // Helper signature (private, optional): inorderHelper(Node* x, visit)
 template <typename Key, typename Value>
-void RBTree<Key, Value>::inorder(std::function<void(const Key&, const Value&)> visit) const {}
+void RBTree<Key, Value>::inorder(std::function<void(const Key&, const Value&)> visit) const {
+    std::function<void(Node*)> helper = [&](Node* x) 
+    {
+        if (x == NIL) return;
+        helper(x->left);
+        visit(x->key, x->value);
+        helper(x->right);
+    };
+    helper(root);
+}
