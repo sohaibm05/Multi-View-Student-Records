@@ -299,4 +299,12 @@ typename RBTree<Key, Value>::Node* RBTree<Key, Value>::back() const { return max
 // Skip NIL nodes.  Produces keys in ascending order.
 // Helper signature (private, optional): inorderHelper(Node* x, visit)
 template <typename Key, typename Value>
-void RBTree<Key, Value>::inorder(std::function<void(const Key&, const Value&)> visit) const {}
+void RBTree<Key, Value>::inorder(std::function<void(const Key&, const Value&)> visit) const {
+    std::function<void(Node*)> helper = [&](Node* x) {
+        if (x == NIL) return;
+        helper(x->left);
+        visit(x->key, x->value);
+        helper(x->right);
+    };
+    helper(root);
+}
