@@ -206,7 +206,51 @@ void RBTree<Key, Value>::insertFixup(Node* z) {
 // Returns false if key is not in the tree.
 // Reference: CLRS 4th ed. §13.4, RB-DELETE pseudocode.
 template <typename Key, typename Value>
-bool RBTree<Key, Value>::remove(const Key& key) { return false; }
+bool RBTree<Key, Value>::remove(const Key& key) {
+    // Find the node to delete
+    Node* z = root;
+    while (z != NIL) {
+        if      (key == z->key) break;
+        else if (key  < z->key) z = z->left;
+        else                    z = z->right;
+    }
+    if (z == NIL) return false;    // key not found
+
+    Node* y = z;                   // y = node to splice out
+    Node* x;                       // x = node that moves into y's place
+    Color yOriginalColor = y->color;
+
+    if (z->left == NIL) {          // Case A: no left child
+        x = z->right;
+        transplant(z, z->right);
+    } else if (z->right == NIL) {  // Case B: no right child
+        x = z->left;
+        transplant(z, z->left);
+    } else {                       // Case C: two children — use in-order successor
+        y = minimum(z->right);     // leftmost node in right subtree
+        yOriginalColor = y->color;
+        x = y->right;
+        if (y->parent == z) {
+            x->parent = y;         // x may be NIL sentinel; safe to update its parent
+        } else {
+            transplant(y, y->right);
+            y->right = z->right;
+            y->right->parent = y;
+        }
+        transplant(z, y);
+        y->left = z->left;
+        y->left->parent = y;
+        y->color = z->color;       // successor inherits deleted node's colour
+    }
+
+    delete z;
+    --nodeCount;
+
+    if (yOriginalColor == Color::BLACK)  // removing a BLACK node breaks black-height
+        deleteFixup(x);
+
+    return true;
+}
 
 // ── deleteFixup ───────────────────────────────────────────────────────────────
 // Loop while x != root and x is BLACK (x has a "double-black" problem).
@@ -218,7 +262,76 @@ bool RBTree<Key, Value>::remove(const Key& key) { return false; }
 // After loop: set x->colour = BLACK to absorb the extra black.
 // Reference: CLRS 4th ed. §13.4, RB-DELETE-FIXUP pseudocode.
 template <typename Key, typename Value>
-void RBTree<Key, Value>::deleteFixup(Node* x) {}
+void RBTree<Key, Value>::deleteFixup(Node* x) {
+    while (x != root && x->color == Color::BLACK) {
+        if (x == x->parent->left) {          // x is a left child
+            Node* w = x->parent->right;      // w is x's sibling
+
+            if (w->color == Color::RED) {
+                // ── Case 1: sibling RED ───────────────────────────────────────
+                // Recolour + rotate; converts to Case 2, 3, or 4
+                w->color           = Color::BLACK;
+                x->parent->color   = Color::RED;
+                leftRotate(x->parent);
+                w = x->parent->right;        // new sibling after rotation
+            }
+
+            if (w->left->color == Color::BLACK && w->right->color == Color::BLACK) {
+                // ── Case 2: sibling BLACK, both nephews BLACK ─────────────────
+                // Push double-black up; recolour sibling RED
+                w->color = Color::RED;
+                x = x->parent;
+            } else {
+                if (w->right->color == Color::BLACK) {
+                    // ── Case 3: sibling BLACK, far nephew BLACK, near nephew RED
+                    // Rotate sibling to convert to Case 4
+                    w->left->color = Color::BLACK;
+                    w->color       = Color::RED;
+                    rightRotate(w);
+                    w = x->parent->right;
+                }
+                // ── Case 4: sibling BLACK, far nephew RED ─────────────────────
+                // Rotate + recolour; terminates loop
+                w->color           = x->parent->color;
+                x->parent->color   = Color::BLACK;
+                w->right->color    = Color::BLACK;
+                leftRotate(x->parent);
+                x = root;                    // done
+            }
+        } else {                             // x is a right child (mirror)
+            Node* w = x->parent->left;
+
+            if (w->color == Color::RED) {
+                // ── Case 1 (mirror) ───────────────────────────────────────────
+                w->color           = Color::BLACK;
+                x->parent->color   = Color::RED;
+                rightRotate(x->parent);
+                w = x->parent->left;
+            }
+
+            if (w->right->color == Color::BLACK && w->left->color == Color::BLACK) {
+                // ── Case 2 (mirror) ───────────────────────────────────────────
+                w->color = Color::RED;
+                x = x->parent;
+            } else {
+                if (w->left->color == Color::BLACK) {
+                    // ── Case 3 (mirror) ───────────────────────────────────────
+                    w->right->color = Color::BLACK;
+                    w->color        = Color::RED;
+                    leftRotate(w);
+                    w = x->parent->left;
+                }
+                // ── Case 4 (mirror) ───────────────────────────────────────────
+                w->color           = x->parent->color;
+                x->parent->color   = Color::BLACK;
+                w->left->color     = Color::BLACK;
+                rightRotate(x->parent);
+                x = root;
+            }
+        }
+    }
+    x->color = Color::BLACK;    // absorb any remaining double-black
+}
 
 // ── transplant ────────────────────────────────────────────────────────────────
 // Replace the subtree rooted at u with the subtree rooted at v:
