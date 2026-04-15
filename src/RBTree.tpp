@@ -227,7 +227,15 @@ void RBTree<Key, Value>::deleteFixup(Node* x) {}
 //   then v->parent = u->parent
 // Note: does NOT update v->left or v->right — caller handles that.
 template <typename Key, typename Value>
-void RBTree<Key, Value>::transplant(Node* u, Node* v) {}
+void RBTree<Key, Value>::transplant(Node* u, Node* v) {
+    if (u->parent == NIL)          // u was root → v becomes new root
+        root = v;
+    else if (u == u->parent->left) // u was left child
+        u->parent->left = v;
+    else                           // u was right child
+        u->parent->right = v;
+    v->parent = u->parent;         // always update v's parent (safe even if v == NIL)
+}
 
 // ── minimum ───────────────────────────────────────────────────────────────────
 // Walk x->left until hitting NIL.  The last real node is the minimum.
