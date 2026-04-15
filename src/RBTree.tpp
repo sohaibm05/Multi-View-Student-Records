@@ -25,13 +25,21 @@ RBTree<Key, Value>::RBTree() {
 // ── Destructor ────────────────────────────────────────────────────────────────
 // Call destroyTree(root) to free every real node, then delete the NIL sentinel.
 template <typename Key, typename Value>
-RBTree<Key, Value>::~RBTree() {}
+RBTree<Key, Value>::~RBTree() {
+    destroyTree(root);
+    delete NIL;
+}
 
 // ── destroyTree ───────────────────────────────────────────────────────────────
 // Post-order traversal: destroy left subtree, destroy right subtree, delete x.
 // Stop when x == NIL (base case — do NOT delete the sentinel here).
 template <typename Key, typename Value>
-void RBTree<Key, Value>::destroyTree(Node* x) {}
+void RBTree<Key, Value>::destroyTree(Node* x) {
+    if (x == NIL) return;
+    destroyTree(x->left);
+    destroyTree(x->right);
+    delete x;
+}
 
 // ── leftRotate ────────────────────────────────────────────────────────────────
 // Standard left rotation around node x (see diagram in RBTree.hpp).
@@ -46,12 +54,46 @@ void RBTree<Key, Value>::destroyTree(Node* x) {}
 // After rotating: if you have augmentation fields (subtreeSize, maxEnd, etc.)
 // update x first (it's now lower), then y (it's now higher).
 template <typename Key, typename Value>
-void RBTree<Key, Value>::leftRotate(Node* x) {}
+void RBTree<Key, Value>::leftRotate(Node* x) {
+    Node* y = x->right;          // 1. y is x's right child
+
+    x->right = y->left;          // 2. move y's left subtree to x's right
+    if (y->left != NIL)          // 3. update parent pointer if not NIL
+        y->left->parent = x;
+
+    y->parent = x->parent;       // 4. link y to x's old parent
+    if (x->parent == NIL)        // 5. x was root → y becomes new root
+        root = y;
+    else if (x == x->parent->left)
+        x->parent->left = y;     //    x was left child
+    else
+        x->parent->right = y;    //    x was right child
+
+    y->left = x;                 // 6. x becomes y's left child
+    x->parent = y;               // 7. update x's parent
+}
 
 // ── rightRotate ───────────────────────────────────────────────────────────────
 // Mirror of leftRotate.  Replace every "left↔right" in the steps above.
 template <typename Key, typename Value>
-void RBTree<Key, Value>::rightRotate(Node* x) {}
+void RBTree<Key, Value>::rightRotate(Node* x) {
+    Node* y = x->left;           // 1. y is x's left child
+
+    x->left = y->right;          // 2. move y's right subtree to x's left
+    if (y->right != NIL)         // 3. update parent pointer if not NIL
+        y->right->parent = x;
+
+    y->parent = x->parent;       // 4. link y to x's old parent
+    if (x->parent == NIL)        // 5. x was root → y becomes new root
+        root = y;
+    else if (x == x->parent->right)
+        x->parent->right = y;    //    x was right child
+    else
+        x->parent->left = y;     //    x was left child
+
+    y->right = x;                // 6. x becomes y's right child
+    x->parent = y;               // 7. update x's parent
+}
 
 // ── insert ────────────────────────────────────────────────────────────────────
 // 1. Allocate a new Node(key, value) coloured RED.
@@ -111,12 +153,22 @@ void RBTree<Key, Value>::transplant(Node* u, Node* v) {}
 // Walk x->left until hitting NIL.  The last real node is the minimum.
 // Used internally by remove (to find in-order successor) and by front().
 template <typename Key, typename Value>
-typename RBTree<Key, Value>::Node* RBTree<Key, Value>::minimum(Node* x) const { return nullptr; }
+typename RBTree<Key, Value>::Node* RBTree<Key, Value>::minimum(Node* x) const {
+    if (x == NIL) return nullptr;
+    while (x->left != NIL)
+        x = x->left;
+    return x;
+}
 
 // ── maximum ───────────────────────────────────────────────────────────────────
 // Walk x->right until hitting NIL.  Mirror of minimum.
 template <typename Key, typename Value>
-typename RBTree<Key, Value>::Node* RBTree<Key, Value>::maximum(Node* x) const { return nullptr; }
+typename RBTree<Key, Value>::Node* RBTree<Key, Value>::maximum(Node* x) const {
+    if (x == NIL) return nullptr;
+    while (x->right != NIL)
+        x = x->right;
+    return x;
+}
 
 // ── find ──────────────────────────────────────────────────────────────────────
 // Standard BST search:
@@ -126,7 +178,18 @@ typename RBTree<Key, Value>::Node* RBTree<Key, Value>::maximum(Node* x) const { 
 //     else                   → go right
 // Return nullptr if not found.
 template <typename Key, typename Value>
-typename RBTree<Key, Value>::Node* RBTree<Key, Value>::find(const Key& key) const { return nullptr; }
+typename RBTree<Key, Value>::Node* RBTree<Key, Value>::find(const Key& key) const {
+    Node* current = root;
+    while (current != NIL) {
+        if (key == current->key)
+            return current;
+        else if (key < current->key)
+            current = current->left;
+        else
+            current = current->right;
+    }
+    return nullptr;
+}
 
 // ── lowerBound ────────────────────────────────────────────────────────────────
 // Find the first node with key >= the argument (leftmost node that could match).
