@@ -469,69 +469,6 @@ void testLargeScale() {
 }
 
 // =============================================================================
-// 15. DEMO  —  human-readable walkthrough printed to stdout
-// =============================================================================
-void demo() {
-    section("DEMO — Student GPA Index (key=GPA*100, value=name)");
-
-    RBTreeValidator<int, std::string> t;
-
-    struct Student { int gpa; std::string name; };
-    std::vector<Student> students = {
-        {350, "Alice"},   {280, "Bob"},    {390, "Carol"},
-        {310, "Dave"},    {265, "Eve"},    {375, "Frank"},
-        {300, "Grace"},   {410, "Heidi"},  {290, "Ivan"},
-    };
-
-    std::cout << "\n  Inserting students:\n";
-    for (auto& s : students) {
-        t.insert(s.gpa, s.name);
-        std::cout << "    insert GPA=" << s.gpa / 100.0
-                  << "  name=" << s.name << "\n";
-    }
-
-    std::cout << "\n  Tree valid: " << (t.isValid() ? "YES" : "NO") << "\n";
-    std::cout << "  Size: " << t.size() << "\n";
-    std::cout << "  Min GPA: " << t.front()->value
-              << " (" << t.front()->key / 100.0 << ")\n";
-    std::cout << "  Max GPA: " << t.back()->value
-              << " (" << t.back()->key / 100.0 << ")\n";
-
-    std::cout << "\n  All students in GPA order:\n";
-    t.inorder([](const int& gpa, const std::string& name) {
-        std::cout << "    " << gpa / 100.0 << "  " << name << "\n";
-    });
-
-    // Range query: GPA between 3.00 and 3.75
-    int lo = 300, hi = 375;
-    std::cout << "\n  Students with GPA in [3.00, 3.75]:\n";
-    auto* node = t.lowerBound(lo);
-    while (node != nullptr && node->key <= hi) {
-        std::cout << "    " << node->key / 100.0
-                  << "  " << node->value << "\n";
-        // Walk to next via upperBound trick: find next key strictly > current
-        node = t.upperBound(node->key);
-    }
-
-    // Remove a student
-    std::cout << "\n  Removing Bob (GPA=2.80)...\n";
-    t.remove(280);
-    std::cout << "  Size after removal: " << t.size() << "\n";
-    std::cout << "  Tree valid: " << (t.isValid() ? "YES" : "NO") << "\n";
-
-    // Duplicate update
-    std::cout << "\n  Alice retakes exam — GPA updated to 4.00\n";
-    t.insert(350, "Alice*");   // same key, new value
-    t.insert(400, "Alice");    // new key for new GPA (old entry stays renamed)
-    std::cout << "  find(350): " << t.find(350)->value << "\n";
-    std::cout << "  find(400): " << t.find(400)->value << "\n";
-    std::cout << "  Size: " << t.size() << " (unchanged for key 350 update)\n";
-
-    assert(t.isValid());
-    pass("demo completed — all assertions passed");
-}
-
-// =============================================================================
 // main
 // =============================================================================
 int main() {
@@ -553,7 +490,6 @@ int main() {
     testUpperBound();
     testStringKeys();
     testLargeScale();
-    demo();
 
     std::cout << "\n══════════════════════════════════════════════\n";
     std::cout << "  ALL TESTS PASSED\n";

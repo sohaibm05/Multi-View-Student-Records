@@ -128,7 +128,7 @@ static void studentMenu(MultiViewManager& sr) {
             int year; double minCGPA; std::string prefix;
             std::cout << "  Year: ";       std::cin >> year;
             std::cout << "  Min CGPA: ";   std::cin >> minCGPA;
-            std::cout << "  Name prefix (or -): "; std::cin >> prefix;
+            std::cout << "  Name prefix (or ): "; std::cin >> prefix;
             if (prefix == "-") prefix = "";
             printStudents(sr.crossQuery(year, minCGPA, prefix));
             break;
