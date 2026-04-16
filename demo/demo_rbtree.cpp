@@ -90,7 +90,7 @@ int main() {
     std::cout << "  Tree valid: " << (t.isValid() ? "YES" : "NO") << "\n";
 
     // Duplicate key update
-    std::cout << "\n  Alice retakes exam — GPA updated to 4.00\n";
+    std::cout << "\n  Alice retakes exam GPA updated to 4.00\n";
     t.insert(350, "Alice*");
     t.insert(400, "Alice");
     std::cout << "  find(350): " << t.find(350)->value << "\n";
@@ -98,6 +98,6 @@ int main() {
     std::cout << "  Size: " << t.size() << " (unchanged for key 350 update)\n";
 
     assert(t.isValid());
-    std::cout << "\n  [PASS] demo completed — all assertions passed\n\n";
+    std::cout << "\n  [PASS] demo completed  all assertions passed\n\n";
     return 0;
 }
