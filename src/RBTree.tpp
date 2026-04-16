@@ -12,7 +12,8 @@
 // 4. Set root = NIL (empty tree).
 // 5. nodeCount = 0.
 template <typename Key, typename Value>
-RBTree<Key, Value>::RBTree() {
+RBTree<Key, Value>::RBTree() 
+{
     NIL = new Node(Key{}, Value{});  // sentinel leaf — shared by all null positions
     NIL->color  = Color::BLACK;      // invariant 3: every leaf (NIL) is BLACK
     NIL->left   = NIL;               // NIL points to itself
@@ -25,7 +26,8 @@ RBTree<Key, Value>::RBTree() {
 // ── Destructor ────────────────────────────────────────────────────────────────
 // Call destroyTree(root) to free every real node, then delete the NIL sentinel.
 template <typename Key, typename Value>
-RBTree<Key, Value>::~RBTree() {
+RBTree<Key, Value>::~RBTree() 
+{
     destroyTree(root);
     delete NIL;
 }
@@ -34,7 +36,8 @@ RBTree<Key, Value>::~RBTree() {
 // Post-order traversal: destroy left subtree, destroy right subtree, delete x.
 // Stop when x == NIL (base case — do NOT delete the sentinel here).
 template <typename Key, typename Value>
-void RBTree<Key, Value>::destroyTree(Node* x) {
+void RBTree<Key, Value>::destroyTree(Node* x) 
+{
     if (x == NIL) return;
     destroyTree(x->left);
     destroyTree(x->right);
