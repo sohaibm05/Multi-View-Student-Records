@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>RBTree Demo Visualizer — Student GPA Index</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #0f1117; color: #e0e0e0; font-family: 'Consolas', monospace; }
+  h1 { text-align: center; padding: 18px 0 4px; font-size: 1.2rem; color: #a0cfff; letter-spacing: 1px; }
+  #subtitle { text-align: center; font-size: 0.78rem; color: #556; margin-bottom: 10px; }
+
+  #layout { display: flex; gap: 12px; padding: 0 14px 14px; height: calc(100vh - 80px); }
+
+  /* Left panel: controls + log */
+  #left { display: flex; flex-direction: column; width: 280px; flex-shrink: 0; gap: 8px; }
+
+  #steps-panel { background: #161b24; border: 1px solid #2a3040; border-radius: 6px; padding: 10px; flex-shrink: 0; }
+  #steps-panel h3 { font-size: 0.72rem; color: #778; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px; }
+  #step-list { list-style: none; }
+  #step-list li { font-size: 0.75rem; padding: 5px 8px; margin-bottom: 3px; border-radius: 4px; cursor: pointer;
+                  border: 1px solid transparent; color: #8a9; transition: background 0.15s; }
+  #step-list li:hover { background: #1e2535; }
+  #step-list li.active { background: #1a2a1a; border-color: #3a6a3a; color: #7dfa7d; }
+  #step-list li.done { color: #446; }
+
+  .btn-row { display: flex; gap: 6px; }
+  button { flex: 1; padding: 7px; background: #1c2230; border: 1px solid #2e3f55; border-radius: 5px;
+           color: #9bc; font-family: inherit; font-size: 0.78rem; cursor: pointer; transition: background 0.15s; }
+  button:hover { background: #253045; }
+  button:active { background: #1a2535; }
+  #btn-play { background: #0d2a18; border-color: #2a6a3a; color: #5dea5d; }
+  #btn-play:hover { background: #0f3520; }
+
+  #log { background: #0d1018; border: 1px solid #1e2535; border-radius: 6px; padding: 8px 10px;
+         flex: 1; overflow-y: auto; font-size: 0.72rem; line-height: 1.6; }
+  #log .entry { padding: 2px 0; border-bottom: 1px solid #131820; }
+  #log .entry.highlight { color: #7dfa7d; }
+  #log .entry.warn { color: #f0c060; }
+  #log .entry.section { color: #70b0ff; margin-top: 6px; font-weight: bold; }
+
+  /* Right: tree canvas */
+  #right { flex: 1; display: flex; flex-direction: column; gap: 8px; }
+  #tree-wrap { flex: 1; background: #0d1018; border: 1px solid #1e2535; border-radius: 6px; overflow: hidden; position: relative; }
+  svg#tree-svg { width: 100%; height: 100%; }
+
+  #info-bar { background: #161b24; border: 1px solid #2a3040; border-radius: 6px; padding: 8px 14px;
+              display: flex; gap: 24px; font-size: 0.75rem; flex-shrink: 0; }
+  .stat { display: flex; flex-direction: column; }
+  .stat .lbl { color: #556; font-size: 0.65rem; text-transform: uppercase; letter-spacing: 1px; }
+  .stat .val { color: #c0d8ff; font-size: 0.9rem; font-weight: bold; }
+
+  /* legend */
+  #legend { display: flex; gap: 16px; font-size: 0.7rem; color: #667; }
+  .leg { display: flex; align-items: center; gap: 5px; }
+  .leg-dot { width: 12px; height: 12px; border-radius: 50%; }
+  .leg-dot.red { background: #c0392b; border: 2px solid #e74c3c; }
+  .leg-dot.black { background: #2c2c2c; border: 2px solid #555; }
+  .leg-dot.highlight { background: #f39c12; border: 2px solid #f1c40f; }
+</style>
+</head>
+<body>
+<h1>Red-Black Tree Demo — Student GPA Index</h1>
+<div id="subtitle">key = GPA × 100 &nbsp;|&nbsp; value = student name</div>
+
+<div id="layout">
+  <div id="left">
+    <div id="steps-panel">
+      <h3>Demo Steps</h3>
+      <ul id="step-list"></ul>
+    </div>
+    <div class="btn-row">
+      <button id="btn-prev">&#9664; Prev</button>
+      <button id="btn-play">&#9654; Play</button>
+      <button id="btn-next">Next &#9654;</button>
+    </div>
+    <div id="log"></div>
+  </div>
+
+  <div id="right">
+    <div id="info-bar">
+      <div class="stat"><span class="lbl">Size</span><span class="val" id="stat-size">0</span></div>
+      <div class="stat"><span class="lbl">Min GPA</span><span class="val" id="stat-min">—</span></div>
+      <div class="stat"><span class="lbl">Max GPA</span><span class="val" id="stat-max">—</span></div>
+      <div class="stat"><span class="lbl">Valid</span><span class="val" id="stat-valid">—</span></div>
+      <div class="stat"><span class="lbl">Black Height</span><span class="val" id="stat-bh">—</span></div>
+      <div id="legend" style="margin-left:auto">
+        <div class="leg"><div class="leg-dot red"></div>RED node</div>
+        <div class="leg"><div class="leg-dot black"></div>BLACK node</div>
+        <div class="leg"><div class="leg-dot highlight"></div>Active</div>
+      </div>
+    </div>
+    <div id="tree-wrap"><svg id="tree-svg"></svg></div>
+  </div>
+</div>
+
+<script>
+// ─── Red-Black Tree implementation ────────────────────────────────────────────
+const RED = 'RED', BLACK = 'BLACK';
+
+class RBNode {
+  constructor(key, val) {
+    this.key = key; this.val = val; this.color = RED;
+    this.left = null; this.right = null; this.parent = null;
+  }
+}
+
+class RBTree {
+  constructor() {
+    this.NIL = new RBNode(null, null);
+    this.NIL.color = BLACK;
+    this.NIL.left = this.NIL; this.NIL.right = this.NIL; this.NIL.parent = this.NIL;
+    this.root = this.NIL;
+    this.count = 0;
+  }
+  _leftRotate(x) {
+    const y = x.right; x.right = y.left;
+    if (y.left !== this.NIL) y.left.parent = x;
+    y.parent = x.parent;
+    if (x.parent === this.NIL) this.root = y;
+    else if (x === x.parent.left) x.parent.left = y;
+    else x.parent.right = y;
+    y.left = x; x.parent = y;
+  }
+  _rightRotate(x) {
+    const y = x.left; x.left = y.right;
+    if (y.right !== this.NIL) y.right.parent = x;
+    y.parent = x.parent;
+    if (x.parent === this.NIL) this.root = y;
+    else if (x === x.parent.right) x.parent.right = y;
+    else x.parent.left = y;
+    y.right = x; x.parent = y;
+  }
+  insert(key, val) {
+    let existing = this.find(key);
+    if (existing) { existing.val = val; return existing; }
+    const z = new RBNode(key, val);
+    z.left = this.NIL; z.right = this.NIL;
+    let y = this.NIL, x = this.root;
+    while (x !== this.NIL) { y = x; x = key < x.key ? x.left : x.right; }
+    z.parent = y;
+    if (y === this.NIL) this.root = z;
+    else if (key < y.key) y.left = z;
+    else y.right = z;
+    this.count++;
+    this._insertFixup(z);
+    return z;
+  }
+  _insertFixup(z) {
+    while (z.parent.color === RED) {
+      if (z.parent === z.parent.parent.left) {
+        const y = z.parent.parent.right;
+        if (y.color === RED) {
+          z.parent.color = BLACK; y.color = BLACK;
+          z.parent.parent.color = RED; z = z.parent.parent;
+        } else {
+          if (z === z.parent.right) { z = z.parent; this._leftRotate(z); }
+          z.parent.color = BLACK; z.parent.parent.color = RED; this._rightRotate(z.parent.parent);
+        }
+      } else {
+        const y = z.parent.parent.left;
+        if (y.color === RED) {
+          z.parent.color = BLACK; y.color = BLACK;
+          z.parent.parent.color = RED; z = z.parent.parent;
+        } else {
+          if (z === z.parent.left) { z = z.parent; this._rightRotate(z); }
+          z.parent.color = BLACK; z.parent.parent.color = RED; this._leftRotate(z.parent.parent);
+        }
+      }
+    }
+    this.root.color = BLACK;
+  }
+  find(key) {
+    let x = this.root;
+    while (x !== this.NIL && x !== null) {
+      if (key === x.key) return x;
+      x = key < x.key ? x.left : x.right;
+    }
+    return null;
+  }
+  remove(key) {
+    let z = this.find(key); if (!z) return false;
+    let y = z, yOrigColor = y.color, x;
+    if (z.left === this.NIL) { x = z.right; this._transplant(z, z.right); }
+    else if (z.right === this.NIL) { x = z.left; this._transplant(z, z.left); }
+    else {
+      y = this._minimum(z.right); yOrigColor = y.color; x = y.right;
+      if (y.parent === z) { x.parent = y; }
+      else { this._transplant(y, y.right); y.right = z.right; y.right.parent = y; }
+      this._transplant(z, y); y.left = z.left; y.left.parent = y; y.color = z.color;
+    }
+    if (yOrigColor === BLACK) this._deleteFixup(x);
+    this.count--;
+    return true;
+  }
+  _transplant(u, v) {
+    if (u.parent === this.NIL) this.root = v;
+    else if (u === u.parent.left) u.parent.left = v;
+    else u.parent.right = v;
+    v.parent = u.parent;
+  }
+  _deleteFixup(x) {
+    while (x !== this.root && x.color === BLACK) {
+      if (x === x.parent.left) {
+        let w = x.parent.right;
+        if (w.color === RED) { w.color = BLACK; x.parent.color = RED; this._leftRotate(x.parent); w = x.parent.right; }
+        if (w.left.color === BLACK && w.right.color === BLACK) { w.color = RED; x = x.parent; }
+        else {
+          if (w.right.color === BLACK) { w.left.color = BLACK; w.color = RED; this._rightRotate(w); w = x.parent.right; }
+          w.color = x.parent.color; x.parent.color = BLACK; w.right.color = BLACK; this._leftRotate(x.parent); x = this.root;
+        }
+      } else {
+        let w = x.parent.left;
+        if (w.color === RED) { w.color = BLACK; x.parent.color = RED; this._rightRotate(x.parent); w = x.parent.left; }
+        if (w.right.color === BLACK && w.left.color === BLACK) { w.color = RED; x = x.parent; }
+        else {
+          if (w.left.color === BLACK) { w.right.color = BLACK; w.color = RED; this._leftRotate(w); w = x.parent.left; }
+          w.color = x.parent.color; x.parent.color = BLACK; w.left.color = BLACK; this._rightRotate(x.parent); x = this.root;
+        }
+      }
+    }
+    x.color = BLACK;
+  }
+  _minimum(x) { while (x.left !== this.NIL) x = x.left; return x; }
+  _maximum(x) { while (x.right !== this.NIL) x = x.right; return x; }
+  front() { return this.root === this.NIL ? null : this._minimum(this.root); }
+  back()  { return this.root === this.NIL ? null : this._maximum(this.root); }
+  lowerBound(key) {
+    let res = null, x = this.root;
+    while (x !== this.NIL) { if (x.key >= key) { res = x; x = x.left; } else x = x.right; }
+    return res;
+  }
+  upperBound(key) {
+    let res = null, x = this.root;
+    while (x !== this.NIL) { if (x.key > key) { res = x; x = x.left; } else x = x.right; }
+    return res;
+  }
+  inorder(fn) {
+    const walk = n => { if (n === this.NIL) return; walk(n.left); fn(n.key, n.val); walk(n.right); };
+    walk(this.root);
+  }
+  blackHeight(x) {
+    if (!x || x === this.NIL) return 1;
+    const lh = this.blackHeight(x.left), rh = this.blackHeight(x.right);
+    if (lh === -1 || rh === -1 || lh !== rh) return -1;
+    return lh + (x.color === BLACK ? 1 : 0);
+  }
+  isValid() {
+    if (this.root !== this.NIL && this.root.color !== BLACK) return false;
+    const check = n => {
+      if (n === this.NIL) return true;
+      if (n.color === RED && (n.left.color === RED || n.right.color === RED)) return false;
+      return check(n.left) && check(n.right);
+    };
+    return check(this.root) && this.blackHeight(this.root) !== -1;
+  }
+}
+
+// ─── Build steps from demo script ─────────────────────────────────────────────
+const students = [
+  {gpa:350,name:"Alice"},{gpa:280,name:"Bob"},{gpa:390,name:"Carol"},
+  {gpa:310,name:"Dave"},{gpa:265,name:"Eve"},{gpa:375,name:"Frank"},
+  {gpa:300,name:"Grace"},{gpa:410,name:"Heidi"},{gpa:290,name:"Ivan"},
+];
+
+function buildSteps() {
+  const steps = [];
+  // Step 0: empty
+  steps.push({ label:"Initial (empty tree)", ops:[], highlight:null,
+    log:[{cls:'section',txt:'DEMO Student GPA Index (key=GPA×100)'}] });
+  // Insert steps
+  for (const s of students) {
+    steps.push({
+      label:`Insert ${s.name} (${s.gpa/100})`,
+      ops: steps[steps.length-1].ops.concat([{type:'insert',key:s.gpa,val:s.name}]),
+      highlight: s.gpa,
+      log:[{cls:'highlight',txt:`  insert GPA=${s.gpa/100}  name=${s.name}`}]
+    });
+  }
+  // Validation step
+  const afterInserts = students.map(s=>({type:'insert',key:s.gpa,val:s.name}));
+  steps.push({
+    label:'Validate & Stats',
+    ops: afterInserts,
+    highlight: null,
+    log:[
+      {cls:'section',txt:'── Post-Insert Stats ──'},
+      {cls:'',txt:'  Tree valid: YES'},
+      {cls:'',txt:`  Size: ${students.length}`},
+      {cls:'',txt:'  Min GPA: Eve (2.65)'},
+      {cls:'',txt:'  Max GPA: Heidi (4.10)'},
+    ]
+  });
+  // In-order step
+  steps.push({
+    label:'In-order traversal',
+    ops: afterInserts,
+    highlight: null,
+    highlightRange: [265, 410],
+    log:[
+      {cls:'section',txt:'── All students in GPA order ──'},
+      {cls:'',txt:'  2.65  Eve'},
+      {cls:'',txt:'  2.80  Bob'},
+      {cls:'',txt:'  2.90  Ivan'},
+      {cls:'',txt:'  3.00  Grace'},
+      {cls:'',txt:'  3.10  Dave'},
+      {cls:'',txt:'  3.50  Alice'},
+      {cls:'',txt:'  3.75  Frank'},
+      {cls:'',txt:'  3.90  Carol'},
+      {cls:'',txt:'  4.10  Heidi'},
+    ]
+  });
+  // Range query step
+  steps.push({
+    label:'Range query [3.00, 3.75]',
+    ops: afterInserts,
+    highlight: null,
+    highlightRange: [300, 375],
+    log:[
+      {cls:'section',txt:'── GPA in [3.00, 3.75] ──'},
+      {cls:'warn',txt:'  3.00  Grace'},
+      {cls:'warn',txt:'  3.10  Dave'},
+      {cls:'warn',txt:'  3.50  Alice'},
+      {cls:'warn',txt:'  3.75  Frank'},
+    ]
+  });
+  // Remove Bob
+  const afterRemove = afterInserts.concat([{type:'remove',key:280}]);
+  steps.push({
+    label:'Remove Bob (2.80)',
+    ops: afterRemove,
+    highlight: null,
+    log:[
+      {cls:'section',txt:'── Remove Bob (GPA=2.80) ──'},
+      {cls:'',txt:`  Size after removal: ${students.length - 1}`},
+      {cls:'',txt:'  Tree valid: YES'},
+    ]
+  });
+  // Update Alice
+  const afterUpdate = afterRemove.concat([
+    {type:'insert',key:350,val:'Alice*'},
+    {type:'insert',key:400,val:'Alice'},
+  ]);
+  steps.push({
+    label:"Alice's GPA → 4.00",
+    ops: afterUpdate,
+    highlight: 400,
+    log:[
+      {cls:'section',txt:"── Alice retakes exam ──"},
+      {cls:'',txt:'  insert(350, "Alice*")  → update in-place'},
+      {cls:'',txt:'  insert(400, "Alice")   → new node'},
+      {cls:'highlight',txt:'  find(350): Alice*'},
+      {cls:'highlight',txt:'  find(400): Alice'},
+      {cls:'',txt:`  Size: ${students.length}`},
+      {cls:'highlight',txt:'  [PASS] all assertions passed'},
+    ]
+  });
+  return steps;
+}
+
+function replayOps(ops) {
+  const t = new RBTree();
+  for (const op of ops) {
+    if (op.type === 'insert') t.insert(op.key, op.val);
+    else if (op.type === 'remove') t.remove(op.key);
+  }
+  return t;
+}
+
+// ─── Layout & rendering ───────────────────────────────────────────────────────
+const SVG_NS = 'http://www.w3.org/2000/svg';
+const R = 22, V_GAP = 68, H_PAD = 30;
+
+function assignPositions(tree) {
+  const positions = new Map();
+  let counter = 0;
+  const inorder = n => {
+    if (n === tree.NIL) return;
+    inorder(n.left);
+    positions.set(n, { x: counter++, depth: 0 });
+    inorder(n.right);
+  };
+  inorder(tree.root);
+
+  const setDepth = (n, d) => {
+    if (n === tree.NIL) return;
+    positions.get(n).depth = d;
+    setDepth(n.left, d + 1);
+    setDepth(n.right, d + 1);
+  };
+  setDepth(tree.root, 0);
+  return positions;
+}
+
+function renderTree(tree, highlightKey, highlightRange) {
+  const svg = document.getElementById('tree-svg');
+  svg.innerHTML = '';
+  if (tree.root === tree.NIL) {
+    const t = document.createElementNS(SVG_NS, 'text');
+    t.setAttribute('x', '50%'); t.setAttribute('y', '50%');
+    t.setAttribute('text-anchor', 'middle'); t.setAttribute('fill', '#334');
+    t.setAttribute('font-size', '14'); t.textContent = 'Empty tree';
+    svg.appendChild(t); return;
+  }
+
+  const positions = assignPositions(tree);
+  const n = positions.size;
+  const W = svg.clientWidth || 800, H = svg.clientHeight || 500;
+  const xStep = Math.max(44, (W - H_PAD * 2) / Math.max(n, 1));
+
+  const px = node => H_PAD + positions.get(node).x * xStep;
+  const py = node => 36 + positions.get(node).depth * V_GAP;
+
+  // draw edges first
+  const gEdges = document.createElementNS(SVG_NS, 'g');
+  positions.forEach((_, node) => {
+    if (node.left !== tree.NIL) {
+      const line = document.createElementNS(SVG_NS, 'line');
+      line.setAttribute('x1', px(node)); line.setAttribute('y1', py(node));
+      line.setAttribute('x2', px(node.left)); line.setAttribute('y2', py(node.left));
+      line.setAttribute('stroke', '#2a3a2a'); line.setAttribute('stroke-width', '1.5');
+      gEdges.appendChild(line);
+    }
+    if (node.right !== tree.NIL) {
+      const line = document.createElementNS(SVG_NS, 'line');
+      line.setAttribute('x1', px(node)); line.setAttribute('y1', py(node));
+      line.setAttribute('x2', px(node.right)); line.setAttribute('y2', py(node.right));
+      line.setAttribute('stroke', '#2a3a2a'); line.setAttribute('stroke-width', '1.5');
+      gEdges.appendChild(line);
+    }
+  });
+  svg.appendChild(gEdges);
+
+  // draw nodes
+  const gNodes = document.createElementNS(SVG_NS, 'g');
+  positions.forEach((_, node) => {
+    const cx = px(node), cy = py(node);
+    const isHL = node.key === highlightKey;
+    const inRange = highlightRange && node.key >= highlightRange[0] && node.key <= highlightRange[1];
+
+    // glow for highlighted
+    if (isHL || inRange) {
+      const glow = document.createElementNS(SVG_NS, 'circle');
+      glow.setAttribute('cx', cx); glow.setAttribute('cy', cy); glow.setAttribute('r', R + 5);
+      glow.setAttribute('fill', isHL ? '#f39c1233' : '#3a6a3a55');
+      glow.setAttribute('stroke', 'none');
+      gNodes.appendChild(glow);
+    }
+
+    const circle = document.createElementNS(SVG_NS, 'circle');
+    circle.setAttribute('cx', cx); circle.setAttribute('cy', cy); circle.setAttribute('r', R);
+    if (isHL) {
+      circle.setAttribute('fill', '#7a4a00'); circle.setAttribute('stroke', '#f1c40f');
+    } else if (inRange) {
+      circle.setAttribute('fill', node.color === RED ? '#6a1a10' : '#1a3a1a');
+      circle.setAttribute('stroke', node.color === RED ? '#e74c3c' : '#4a8a4a');
+    } else {
+      circle.setAttribute('fill', node.color === RED ? '#4a1008' : '#1c1c1c');
+      circle.setAttribute('stroke', node.color === RED ? '#c0392b' : '#4a4a4a');
+    }
+    circle.setAttribute('stroke-width', '2');
+    gNodes.appendChild(circle);
+
+    // key label
+    const tKey = document.createElementNS(SVG_NS, 'text');
+    tKey.setAttribute('x', cx); tKey.setAttribute('y', cy - 4);
+    tKey.setAttribute('text-anchor', 'middle'); tKey.setAttribute('font-size', '11');
+    tKey.setAttribute('fill', isHL ? '#f1c40f' : inRange ? '#9dea9d' : '#c0c0c0');
+    tKey.setAttribute('font-family', 'Consolas,monospace'); tKey.setAttribute('font-weight', 'bold');
+    tKey.textContent = (node.key / 100).toFixed(2);
+    gNodes.appendChild(tKey);
+
+    // value label
+    const tVal = document.createElementNS(SVG_NS, 'text');
+    tVal.setAttribute('x', cx); tVal.setAttribute('y', cy + 9);
+    tVal.setAttribute('text-anchor', 'middle'); tVal.setAttribute('font-size', '9');
+    tVal.setAttribute('fill', isHL ? '#fada7a' : inRange ? '#7dca7d' : '#7a8a7a');
+    tVal.setAttribute('font-family', 'Consolas,monospace');
+    tVal.textContent = node.val;
+    gNodes.appendChild(tVal);
+  });
+  svg.appendChild(gNodes);
+}
+
+function updateStats(tree) {
+  document.getElementById('stat-size').textContent = tree.count;
+  const mn = tree.front(), mx = tree.back();
+  document.getElementById('stat-min').textContent = mn ? `${mn.val} (${(mn.key/100).toFixed(2)})` : '—';
+  document.getElementById('stat-max').textContent = mx ? `${mx.val} (${(mx.key/100).toFixed(2)})` : '—';
+  const valid = tree.isValid();
+  const el = document.getElementById('stat-valid');
+  el.textContent = tree.count === 0 ? '—' : (valid ? 'YES' : 'NO');
+  el.style.color = valid ? '#5dea5d' : '#ea5d5d';
+  const bh = tree.blackHeight(tree.root);
+  document.getElementById('stat-bh').textContent = bh === -1 ? 'ERR' : bh;
+}
+
+function appendLog(entries) {
+  const log = document.getElementById('log');
+  for (const e of entries) {
+    const div = document.createElement('div');
+    div.className = 'entry ' + (e.cls || '');
+    div.textContent = e.txt;
+    log.appendChild(div);
+  }
+  log.scrollTop = log.scrollHeight;
+}
+
+// ─── Main app ─────────────────────────────────────────────────────────────────
+const steps = buildSteps();
+let currentStep = 0;
+let playing = false;
+let playTimer = null;
+
+// Build step list UI
+const stepList = document.getElementById('step-list');
+steps.forEach((s, i) => {
+  const li = document.createElement('li');
+  li.textContent = `${i}. ${s.label}`;
+  li.dataset.idx = i;
+  li.addEventListener('click', () => goToStep(i));
+  stepList.appendChild(li);
+});
+
+function goToStep(idx) {
+  currentStep = Math.max(0, Math.min(idx, steps.length - 1));
+  const step = steps[currentStep];
+  const tree = replayOps(step.ops);
+
+  renderTree(tree, step.highlight, step.highlightRange);
+  updateStats(tree);
+
+  // update log: show all logs up to and including this step
+  const log = document.getElementById('log');
+  log.innerHTML = '';
+  for (let i = 0; i <= currentStep; i++) {
+    appendLog(steps[i].log);
+  }
+
+  // update step list highlighting
+  Array.from(stepList.children).forEach((li, i) => {
+    li.className = i === currentStep ? 'active' : i < currentStep ? 'done' : '';
+  });
+  stepList.children[currentStep].scrollIntoView({ block: 'nearest' });
+}
+
+function stopPlay() {
+  playing = false;
+  clearInterval(playTimer);
+  document.getElementById('btn-play').textContent = '▶ Play';
+}
+
+document.getElementById('btn-prev').addEventListener('click', () => { stopPlay(); goToStep(currentStep - 1); });
+document.getElementById('btn-next').addEventListener('click', () => { stopPlay(); goToStep(currentStep + 1); });
+document.getElementById('btn-play').addEventListener('click', () => {
+  if (playing) { stopPlay(); return; }
+  if (currentStep >= steps.length - 1) goToStep(0);
+  playing = true;
+  document.getElementById('btn-play').textContent = '⏸ Pause';
+  playTimer = setInterval(() => {
+    if (currentStep >= steps.length - 1) { stopPlay(); return; }
+    goToStep(currentStep + 1);
+  }, 1200);
+});
+
+// Init
+goToStep(0);
+window.addEventListener('resize', () => goToStep(currentStep));
+</script>
+</body>
+</html>
