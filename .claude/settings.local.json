@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(g++ -std=c++17 -Iinclude tests/test_rbtree.cpp -o /tmp/test_rbtree)",
+      "Bash(g++ -std=c++17 -Iinclude tests/demo_rbtree.cpp -o /tmp/demo_rbtree)",
+      "Bash(/tmp/test_rbtree)",
+      "Bash(/tmp/demo_rbtree)"
+    ]
+  }
+}
