@@ -61,42 +61,49 @@ bool MultiViewManager::removeStudent(const std::string& id) {
 // ── single-view lookups ───────────────────────────────────────────────────────
 
 // Delegates directly — no logic here, just routing to the right index.
-std::vector<Student> MultiViewManager::searchByNamePrefix(const std::string& prefix) const {
+std::vector<Student> MultiViewManager::searchByNamePrefix(const std::string& prefix) const
+ {
     return nameIdx.prefixSearch(prefix);
 }
 
-std::vector<Student> MultiViewManager::searchByCGPARange(double low, double high) const {
+std::vector<Student> MultiViewManager::searchByCGPARange(double low, double high) const 
+{
     return cgpaIdx.getInRange(low, high);
 }
 
-std::vector<Student> MultiViewManager::searchByYear(int year) const {
+std::vector<Student> MultiViewManager::searchByYear(int year) const 
+{
     return yearIdx.getByYear(year);
 }
 
-std::vector<Student> MultiViewManager::searchByYearRange(int startYear, int endYear) const {
+std::vector<Student> MultiViewManager::searchByYearRange(int startYear, int endYear) const 
+{
     return yearIdx.rangeByYear(startYear, endYear);
 }
 
-// ── cross-view query ──────────────────────────────────────────────────────────
+// ── cross-view query 
 
 // Strategy: YearIndex is the primary filter (usually the smallest result set).
 // We get the year-filtered list from the tree, then check CGPA and name prefix
 // inline — no need for a separate full scan.
-std::vector<Student> MultiViewManager::crossQuery(int year, double minCGPA,
-                                                   const std::string& namePrefix) const {
+std::vector<Student> MultiViewManager::crossQuery(int year, double minCGPA, const std::string& namePrefix) const 
+{
     std::vector<Student> byYear = yearIdx.getByYear(year);
     std::vector<Student> result;
 
-    for (const Student& s : byYear) {
+    for (const Student& s : byYear) 
+    {
         // CGPA filter
         if (s.cgpa < minCGPA) continue;
 
         // Case-insensitive name prefix filter
-        if (!namePrefix.empty()) {
+        if (!namePrefix.empty()) 
+        {
             if (s.name.size() < namePrefix.size()) continue;
             bool match = true;
             for (size_t i = 0; i < namePrefix.size(); ++i) {
-                if (std::tolower(s.name[i]) != std::tolower(namePrefix[i])) {
+                if (std::tolower(s.name[i]) != std::tolower(namePrefix[i])) 
+                {
                     match = false;
                     break;
                 }
@@ -109,17 +116,18 @@ std::vector<Student> MultiViewManager::crossQuery(int year, double minCGPA,
     return result;
 }
 
-// ── display ───────────────────────────────────────────────────────────────────
+//  display 
 
 // getAllSorted() returns students in ascending name order (inorder on NameIndex).
-void MultiViewManager::printAll() const {
+void MultiViewManager::printAll() const 
+{
     std::vector<Student> sorted = nameIdx.getAllSorted();
     for (const Student& s : sorted)
         std::cout << s.id << "\t" << s.name << "\tCGPA:" << s.cgpa
                   << "\t" << s.batchYear << "\t" << s.department << "\n";
 }
 
-// ── benchmark ─────────────────────────────────────────────────────────────────
+// benchmark 
 // TODO (Member 4 — Sohaib): insert n random students, then time:
 //   • cgpaIdx.getInRange  vs  a sorted std::vector doing binary search
 //   • nameIdx.prefixSearch vs  a linear scan on a std::vector

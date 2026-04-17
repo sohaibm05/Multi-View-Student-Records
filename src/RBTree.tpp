@@ -1,0 +1,476 @@
+// =============================================================================
+// RBTree.tpp  —  Template implementation
+// Included at the bottom of RBTree.hpp so the compiler sees the full
+// definition whenever the header is included.
+// =============================================================================
+
+// ── Constructor ───────────────────────────────────────────────────────────────
+// 1. Allocate the NIL sentinel with a default key/value.
+// 2. Set its colour to BLACK (invariant: leaves are always BLACK).
+// 3. Point all its own pointers to itself (or nullptr — both work since we
+//    never dereference NIL's children).
+// 4. Set root = NIL (empty tree).
+// 5. nodeCount = 0.
+template <typename Key, typename Value>
+RBTree<Key, Value>::RBTree() 
+{
+    NIL = new Node(Key{}, Value{});  // sentinel leaf — shared by all null positions
+    NIL->color  = Color::BLACK;      // invariant 3: every leaf (NIL) is BLACK
+    NIL->left   = NIL;               // NIL points to itself
+    NIL->right  = NIL;
+    NIL->parent = NIL;
+    root      = NIL;                 // empty tree: root IS the NIL sentinel
+    nodeCount = 0;
+}
+
+// ── Destructor ────────────────────────────────────────────────────────────────
+// Call destroyTree(root) to free every real node, then delete the NIL sentinel.
+template <typename Key, typename Value>
+RBTree<Key, Value>::~RBTree() 
+{
+    destroyTree(root);
+    delete NIL;
+}
+
+// ── destroyTree ───────────────────────────────────────────────────────────────
+// Post-order traversal: destroy left subtree, destroy right subtree, delete x.
+// Stop when x == NIL (base case — do NOT delete the sentinel here).
+template <typename Key, typename Value>
+void RBTree<Key, Value>::destroyTree(Node* x) 
+{
+    if (x == NIL) return;
+    destroyTree(x->left);
+    destroyTree(x->right);
+    delete x;
+}
+
+// ── leftRotate ────────────────────────────────────────────────────────────────
+// Standard left rotation around node x (see diagram in RBTree.hpp).
+// Steps (CLRS §13.2 LEFT-ROTATE):
+//   1. y = x->right
+//   2. x->right = y->left       (move y's left subtree to x's right)
+//   3. if y->left != NIL, set y->left->parent = x
+//   4. y->parent = x->parent    (link y to x's old parent)
+//   5. update x->parent's child pointer to y (or root = y if x was root)
+//   6. y->left = x              (x becomes y's left child)
+//   7. x->parent = y
+// After rotating: if you have augmentation fields (subtreeSize, maxEnd, etc.)
+// update x first (it's now lower), then y (it's now higher).
+template <typename Key, typename Value>
+void RBTree<Key, Value>::leftRotate(Node* x) {
+    Node* y = x->right;          // 1. y is x's right child
+
+    x->right = y->left;          // 2. move y's left subtree to x's right
+    if (y->left != NIL)          // 3. update parent pointer if not NIL
+        y->left->parent = x;
+
+    y->parent = x->parent;       // 4. link y to x's old parent
+    if (x->parent == NIL)        // 5. x was root → y becomes new root
+        root = y;
+    else if (x == x->parent->left)
+        x->parent->left = y;     //    x was left child
+    else
+        x->parent->right = y;    //    x was right child
+
+    y->left = x;                 // 6. x becomes y's left child
+    x->parent = y;               // 7. update x's parent
+}
+
+// ── rightRotate ───────────────────────────────────────────────────────────────
+// Mirror of leftRotate.  Replace every "left↔right" in the steps above.
+template <typename Key, typename Value>
+void RBTree<Key, Value>::rightRotate(Node* x) {
+    Node* y = x->left;           // 1. y is x's left child
+
+    x->left = y->right;          // 2. move y's right subtree to x's left
+    if (y->right != NIL)         // 3. update parent pointer if not NIL
+        y->right->parent = x;
+
+    y->parent = x->parent;       // 4. link y to x's old parent
+    if (x->parent == NIL)        // 5. x was root → y becomes new root
+        root = y;
+    else if (x == x->parent->right)
+        x->parent->right = y;    //    x was right child
+    else
+        x->parent->left = y;     //    x was left child
+
+    y->right = x;                // 6. x becomes y's right child
+    x->parent = y;               // 7. update x's parent
+}
+
+// ── insert ────────────────────────────────────────────────────────────────────
+// 1. Allocate a new Node(key, value) coloured RED.
+// 2. Standard BST walk to find the insertion point (track parent with a
+//    trailing pointer).
+// 3. Link the new node into the tree (set parent, and update parent's
+//    left or right child).
+// 4. Set new node's left = NIL, right = NIL.
+// 5. Increment nodeCount.
+// 6. Call insertFixup(newNode) to restore RB invariants.
+template <typename Key, typename Value>
+void RBTree<Key, Value>::insert(const Key& key, const Value& value) 
+{
+    // BST walk to find insertion point; track parent with trailing pointer
+    Node* parent  = NIL;
+    Node* current = root;
+    while (current != NIL) 
+    {
+        parent = current;
+        if (key == current->key) {   // duplicate: update value, no structural change
+            current->value = value;
+            return;
+        } else if (key < current->key)
+            current = current->left;
+        else
+            current = current->right;
+    }
+
+    // Allocate new RED node
+    Node* z  = new Node(key, value);
+    z->left  = NIL;
+    z->right = NIL;
+    z->color = Color::RED;
+    z->parent = parent;
+
+    // Link into tree
+    if (parent == NIL)             // tree was empty
+        root = z;
+    else if (key < parent->key)
+        parent->left = z;
+    else
+        parent->right = z;
+
+    ++nodeCount;
+    insertFixup(z);                // restore RB invariants
+}
+
+// ── insertFixup ───────────────────────────────────────────────────────────────
+// Loop while z's parent is RED (violation of invariant 4).
+// Determine whether z is in the left or right subtree of its grandparent,
+// then apply the three cases symmetrically.
+// After the loop, force root to BLACK (invariant 2).
+// Reference: CLRS 4th ed. §13.3, RB-INSERT-FIXUP pseudocode.
+template <typename Key, typename Value>
+void RBTree<Key, Value>::insertFixup(Node* z) {
+    while (z->parent->color == Color::RED) {         // violation: RED node has RED parent
+        if (z->parent == z->parent->parent->left) {  // parent is a left child
+            Node* uncle = z->parent->parent->right;
+
+            if (uncle->color == Color::RED) {
+                // ── Case 1: uncle is RED ──────────────────────────────────────
+                // Recolour parent + uncle BLACK, grandparent RED, move z up
+                z->parent->color         = Color::BLACK;
+                uncle->color             = Color::BLACK;
+                z->parent->parent->color = Color::RED;
+                z = z->parent->parent;               // problem may have moved up
+            } else {
+                if (z == z->parent->right) {
+                    // ── Case 2: uncle BLACK, z is inner child (triangle) ──────
+                    // Left-rotate parent to turn it into a line → fall to Case 3
+                    z = z->parent;
+                    leftRotate(z);
+                }
+                // ── Case 3: uncle BLACK, z is outer child (line) ─────────────
+                // Recolour + right-rotate grandparent; loop will terminate
+                z->parent->color         = Color::BLACK;
+                z->parent->parent->color = Color::RED;
+                rightRotate(z->parent->parent);
+            }
+        } else {                                     // parent is a right child (mirror)
+            Node* uncle = z->parent->parent->left;
+
+            if (uncle->color == Color::RED) {
+                // ── Case 1 (mirror) ───────────────────────────────────────────
+                z->parent->color         = Color::BLACK;
+                uncle->color             = Color::BLACK;
+                z->parent->parent->color = Color::RED;
+                z = z->parent->parent;
+            } else {
+                if (z == z->parent->left) {
+                    // ── Case 2 (mirror) ───────────────────────────────────────
+                    z = z->parent;
+                    rightRotate(z);
+                }
+                // ── Case 3 (mirror) ───────────────────────────────────────────
+                z->parent->color         = Color::BLACK;
+                z->parent->parent->color = Color::RED;
+                leftRotate(z->parent->parent);
+            }
+        }
+    }
+    root->color = Color::BLACK;  // invariant 2: root is always BLACK
+}
+
+// ── remove ────────────────────────────────────────────────────────────────────
+// 1. Find the node y to delete (may be the target or its in-order successor).
+// 2. Track x (the node that will move into y's position) and its original colour.
+// 3. Use transplant to splice out y.
+// 4. Decrement nodeCount.
+// 5. If the removed colour was BLACK, call deleteFixup(x) — removing a BLACK
+//    node reduces black-height on one path, which must be fixed.
+// Returns false if key is not in the tree.
+// Reference: CLRS 4th ed. §13.4, RB-DELETE pseudocode.
+template <typename Key, typename Value>
+bool RBTree<Key, Value>::remove(const Key& key) {
+    // Find the node to delete
+    Node* z = root;
+    while (z != NIL) {
+        if      (key == z->key) break;
+        else if (key  < z->key) z = z->left;
+        else                    z = z->right;
+    }
+    if (z == NIL) return false;    // key not found
+
+    Node* y = z;                   // y = node to splice out
+    Node* x;                       // x = node that moves into y's place
+    Color yOriginalColor = y->color;
+
+    if (z->left == NIL) {          // Case A: no left child
+        x = z->right;
+        transplant(z, z->right);
+    } else if (z->right == NIL) {  // Case B: no right child
+        x = z->left;
+        transplant(z, z->left);
+    } else {                       // Case C: two children — use in-order successor
+        y = minimum(z->right);     // leftmost node in right subtree
+        yOriginalColor = y->color;
+        x = y->right;
+        if (y->parent == z) {
+            x->parent = y;         // x may be NIL sentinel; safe to update its parent
+        } else {
+            transplant(y, y->right);
+            y->right = z->right;
+            y->right->parent = y;
+        }
+        transplant(z, y);
+        y->left = z->left;
+        y->left->parent = y;
+        y->color = z->color;       // successor inherits deleted node's colour
+    }
+
+    delete z;
+    --nodeCount;
+
+    if (yOriginalColor == Color::BLACK)  // removing a BLACK node breaks black-height
+        deleteFixup(x);
+
+    return true;
+}
+
+// ── deleteFixup ───────────────────────────────────────────────────────────────
+// Loop while x != root and x is BLACK (x has a "double-black" problem).
+// At each step find x's sibling w and apply one of four cases:
+//   Case 1 → recolour + rotate, converts to case 2/3/4
+//   Case 2 → recolour w RED, move x up (shortens double-black path)
+//   Case 3 → rotate + recolour, converts to case 4
+//   Case 4 → rotate + recolour, terminates the loop
+// After loop: set x->colour = BLACK to absorb the extra black.
+// Reference: CLRS 4th ed. §13.4, RB-DELETE-FIXUP pseudocode.
+template <typename Key, typename Value>
+void RBTree<Key, Value>::deleteFixup(Node* x) {
+    while (x != root && x->color == Color::BLACK) {
+        if (x == x->parent->left) {          // x is a left child
+            Node* w = x->parent->right;      // w is x's sibling
+
+            if (w->color == Color::RED) {
+                // ── Case 1: sibling RED ───────────────────────────────────────
+                // Recolour + rotate; converts to Case 2, 3, or 4
+                w->color           = Color::BLACK;
+                x->parent->color   = Color::RED;
+                leftRotate(x->parent);
+                w = x->parent->right;        // new sibling after rotation
+            }
+
+            if (w->left->color == Color::BLACK && w->right->color == Color::BLACK) {
+                // ── Case 2: sibling BLACK, both nephews BLACK ─────────────────
+                // Push double-black up; recolour sibling RED
+                w->color = Color::RED;
+                x = x->parent;
+            } else {
+                if (w->right->color == Color::BLACK) {
+                    // ── Case 3: sibling BLACK, far nephew BLACK, near nephew RED
+                    // Rotate sibling to convert to Case 4
+                    w->left->color = Color::BLACK;
+                    w->color       = Color::RED;
+                    rightRotate(w);
+                    w = x->parent->right;
+                }
+                // ── Case 4: sibling BLACK, far nephew RED ─────────────────────
+                // Rotate + recolour; terminates loop
+                w->color           = x->parent->color;
+                x->parent->color   = Color::BLACK;
+                w->right->color    = Color::BLACK;
+                leftRotate(x->parent);
+                x = root;                    // done
+            }
+        } else {                             // x is a right child (mirror)
+            Node* w = x->parent->left;
+
+            if (w->color == Color::RED) {
+                // ── Case 1 (mirror) ───────────────────────────────────────────
+                w->color           = Color::BLACK;
+                x->parent->color   = Color::RED;
+                rightRotate(x->parent);
+                w = x->parent->left;
+            }
+
+            if (w->right->color == Color::BLACK && w->left->color == Color::BLACK) {
+                // ── Case 2 (mirror) ───────────────────────────────────────────
+                w->color = Color::RED;
+                x = x->parent;
+            } else {
+                if (w->left->color == Color::BLACK) {
+                    // ── Case 3 (mirror) ───────────────────────────────────────
+                    w->right->color = Color::BLACK;
+                    w->color        = Color::RED;
+                    leftRotate(w);
+                    w = x->parent->left;
+                }
+                // ── Case 4 (mirror) ───────────────────────────────────────────
+                w->color           = x->parent->color;
+                x->parent->color   = Color::BLACK;
+                w->left->color     = Color::BLACK;
+                rightRotate(x->parent);
+                x = root;
+            }
+        }
+    }
+    x->color = Color::BLACK;    // absorb any remaining double-black
+}
+
+// ── transplant ────────────────────────────────────────────────────────────────
+// Replace the subtree rooted at u with the subtree rooted at v:
+//   if u is the root → root = v
+//   else update u->parent's left or right pointer to v
+//   then v->parent = u->parent
+// Note: does NOT update v->left or v->right — caller handles that.
+template <typename Key, typename Value>
+void RBTree<Key, Value>::transplant(Node* u, Node* v) {
+    if (u->parent == NIL)          // u was root → v becomes new root
+        root = v;
+    else if (u == u->parent->left) // u was left child
+        u->parent->left = v;
+    else                           // u was right child
+        u->parent->right = v;
+    v->parent = u->parent;         // always update v's parent (safe even if v == NIL)
+}
+
+// ── minimum ───────────────────────────────────────────────────────────────────
+// Walk x->left until hitting NIL.  The last real node is the minimum.
+// Used internally by remove (to find in-order successor) and by front().
+template <typename Key, typename Value>
+typename RBTree<Key, Value>::Node* RBTree<Key, Value>::minimum(Node* x) const {
+    if (x == NIL) return nullptr;
+    while (x->left != NIL)
+        x = x->left;
+    return x;
+}
+
+// ── maximum ───────────────────────────────────────────────────────────────────
+// Walk x->right until hitting NIL.  Mirror of minimum.
+template <typename Key, typename Value>
+typename RBTree<Key, Value>::Node* RBTree<Key, Value>::maximum(Node* x) const {
+    if (x == NIL) return nullptr;
+    while (x->right != NIL)
+        x = x->right;
+    return x;
+}
+
+// ── find ──────────────────────────────────────────────────────────────────────
+// Standard BST search:
+//   start at root; while current != NIL:
+//     if key == current->key → return current
+//     if key  < current->key → go left
+//     else                   → go right
+// Return nullptr if not found.
+template <typename Key, typename Value>
+typename RBTree<Key, Value>::Node* RBTree<Key, Value>::find(const Key& key) const {
+    Node* current = root;
+    while (current != NIL) 
+    {
+        if (key == current->key)
+            return current;
+        else if (key < current->key)
+            current = current->left;
+        else
+            current = current->right;
+    }
+    return nullptr;
+}
+
+// ── lowerBound ────────────────────────────────────────────────────────────────
+// Find the first node with key >= the argument (leftmost node that could match).
+// Algorithm: BST walk; whenever you go right, remember the current node as a
+// candidate.  When you fall off the tree, return the last candidate (or nullptr).
+template <typename Key, typename Value>
+typename RBTree<Key, Value>::Node* RBTree<Key, Value>::lowerBound(const Key& key) const {
+    Node* result  = nullptr;
+    Node* current = root;
+    while (current != NIL) 
+    {
+        if (current->key >= key) 
+        {
+            result  = current;   // current is a candidate (key >= target)
+            current = current->left;  // try to find an earlier one
+        } 
+        else 
+        {
+            current = current->right; // too small, go right
+        }
+    }
+    return result;
+}
+
+// ── upperBound ────────────────────────────────────────────────────────────────
+// Same as lowerBound but returns the first node with key > the argument.
+// Only difference: candidate is updated when node->key > key (not >=).
+template <typename Key, typename Value>
+typename RBTree<Key, Value>::Node* RBTree<Key, Value>::upperBound(const Key& key) const {
+    Node* result  = nullptr;
+    Node* current = root;
+    while (current != NIL) 
+    {
+        if (current->key > key) 
+        {
+            result  = current;   // candidate (key strictly greater)
+            current = current->left;  // try to find an earlier one
+        } 
+        else 
+        {
+            current = current->right; // not strictly greater, go right
+        }
+    }
+    return result;
+}
+
+// ── front ─────────────────────────────────────────────────────────────────────
+// Return minimum(root).  Return nullptr when the tree is empty (root == NIL).
+template <typename Key, typename Value>
+typename RBTree<Key, Value>::Node* RBTree<Key, Value>::front() const 
+{ 
+    return minimum(root); 
+}
+
+// ── back ──────────────────────────────────────────────────────────────────────
+// Return maximum(root).  Return nullptr when the tree is empty (root == NIL).
+template <typename Key, typename Value>
+typename RBTree<Key, Value>::Node* RBTree<Key, Value>::back() const 
+{ 
+    return maximum(root); 
+}
+
+// ── inorder ───────────────────────────────────────────────────────────────────
+// Recursive in-order traversal: left subtree → visit current → right subtree.
+// Skip NIL nodes.  Produces keys in ascending order.
+// Helper signature (private, optional): inorderHelper(Node* x, visit)
+template <typename Key, typename Value>
+void RBTree<Key, Value>::inorder(std::function<void(const Key&, const Value&)> visit) const {
+    std::function<void(Node*)> helper = [&](Node* x) 
+    {
+        if (x == NIL) return;
+        helper(x->left);
+        visit(x->key, x->value);
+        helper(x->right);
+    };
+    helper(root);
+}
