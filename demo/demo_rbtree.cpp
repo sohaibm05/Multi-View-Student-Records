@@ -53,8 +53,8 @@ private:
     }
 };
 
-
-int main() {
+int main() 
+{
 
     std::cout << "  DEMO Student GPA Index (key=GPA*100, value=name)\n";
 
