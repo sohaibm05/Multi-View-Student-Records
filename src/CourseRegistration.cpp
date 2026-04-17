@@ -10,7 +10,6 @@ void CourseRegistration::addToWaitlist(const std::string& id, double cgpa, int b
 std::string CourseWaitlist::promoteFront() {
     Node* node = front();                    // RBTree::front()
 
-    // Fixed: use this->NIL (protected member of base class)
     if (node == nullptr || node == NIL) {
         return "";
     }
