@@ -200,7 +200,7 @@ int main() {
 
     int choice;
     do {
-        std::cout << "\n=== UniCore ===\n"
+        std::cout << "\n UniCore \n"
                      "  1  Student Records\n"
                      "  2  Event Scheduler      (Krish — TODO)\n"
                      "  3  Library Manager      (Saad  — TODO)\n"

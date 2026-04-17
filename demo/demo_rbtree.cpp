@@ -9,23 +9,36 @@
 #include <string>
 #include <vector>
 
-// ── RBTreeValidator (needed for isValid()) ────────────────────────────────────
+// RBTreeValidator (needed for isValid()) 
 template <typename Key, typename Value>
-class RBTreeValidator : public RBTree<Key, Value> {
+class RBTreeValidator : public RBTree<Key, Value> 
+{
     using Node  = typename RBTree<Key, Value>::Node;
     using Color = typename RBTree<Key, Value>::Color;
 public:
-    bool isValid() const { return rootIsBlack() && noRedRed() && blackHeightConsistent(); }
+    bool isValid() const
+    { 
+        return rootIsBlack() && noRedRed() && blackHeightConsistent(); 
+    }
 private:
-    bool rootIsBlack() const {
+    bool rootIsBlack() const 
+    {
         return this->root == this->NIL || this->root->color == Color::BLACK;
     }
-    bool noRedRed() const { return checkNoRedRed(this->root); }
-    bool blackHeightConsistent() const { return blackHeight(this->root) != -1; }
+    bool noRedRed() const 
+    { 
+        return checkNoRedRed(this->root); 
+    }
+    bool blackHeightConsistent() const 
+    { 
+        return blackHeight(this->root) != -1; 
+    }
 
-    bool checkNoRedRed(Node* x) const {
+    bool checkNoRedRed(Node* x) const 
+    {
         if (x == this->NIL) return true;
-        if (x->color == Color::RED) {
+        if (x->color == Color::RED) 
+        {
             if (x->left->color  == Color::RED) return false;
             if (x->right->color == Color::RED) return false;
         }
@@ -40,7 +53,7 @@ private:
     }
 };
 
-// ── demo ──────────────────────────────────────────────────────────────────────
+
 int main() {
 
     std::cout << "  DEMO Student GPA Index (key=GPA*100, value=name)\n";
