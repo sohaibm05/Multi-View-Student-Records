@@ -1,7 +1,3 @@
-// =====================================================
-// include/RBTree.hpp
-// =====================================================
-
 #ifndef RBTREE_HPP
 #define RBTREE_HPP
 
@@ -68,7 +64,6 @@ private:
     void destroyTree(Node* x);
 };
 
-// ====================== FULL IMPLEMENTATION ======================
 
 template <typename Key, typename Value>
 RBTree<Key, Value>::RBTree() {
@@ -272,7 +267,7 @@ void RBTree<Key, Value>::deleteFixup(Node* x) {
                 x->parent->color   = Color::BLACK;
                 w->right->color    = Color::BLACK;
                 leftRotate(x->parent);
-                x = root;                    // done
+                x = root;                    
             }
         } else {                             // x is a right child (mirror)
             Node* w = x->parent->left;
