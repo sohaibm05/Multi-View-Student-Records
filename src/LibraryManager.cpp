@@ -16,7 +16,6 @@ void LibraryTree::updateAvailability(Node* node, bool newStatus) {
 }
 
 size_t LibraryTree::availableInRange(long long d1, long long d2) const {
-    // O(log n) range count on available books (full impl for 30%)
     size_t cnt = 0;
     Node* x = root;
     while (x != NIL) {
