@@ -6,7 +6,6 @@
 #include <iomanip>
 
 int main() {
-    std::cout << "=== UniCore 30% Demo ===\n\n";
 
     // Member 1 - Student Records
     StudentRecords students;
@@ -41,7 +40,5 @@ int main() {
     std::cout << "Course Waitlist (promote front):\n";
     std::cout << "  Promoted: " << reg.waitlist.promoteFront() << "\n\n";
 
-    std::cout << "30% of UniCore complete - each subsystem has its own augmentation + core queries.\n";
-    std::cout << "Next 70% will add full CLI, cross-subsystem queries, benchmarks, rollback, etc.\n";
     return 0;
 }

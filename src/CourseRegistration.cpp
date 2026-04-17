@@ -1,3 +1,4 @@
+// src/CourseRegistration.cpp
 #include "CourseRegistration.hpp"
 
 void CourseRegistration::addToWaitlist(const std::string& id, double cgpa, int batch, long long time) {
@@ -7,9 +8,14 @@ void CourseRegistration::addToWaitlist(const std::string& id, double cgpa, int b
 }
 
 std::string CourseWaitlist::promoteFront() {
-    Node* node = front();
-    if (node == NIL || node == nullptr) return "";
+    Node* node = front();                    // RBTree::front()
+
+    // Fixed: use this->NIL (protected member of base class)
+    if (node == nullptr || node == NIL) {
+        return "";
+    }
+
     std::string id = node->value.studentId;
-    remove(node->key);
+    remove(node->key);                       // RBTree::remove()
     return id;
 }

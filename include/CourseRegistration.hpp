@@ -11,9 +11,15 @@ struct PriorityKey {
 };
 
 inline bool operator<(const PriorityKey& a, const PriorityKey& b) {
-    if (a.cgpa != b.cgpa) return a.cgpa > b.cgpa; // desc CGPA (highest first)
+    if (a.cgpa != b.cgpa) return a.cgpa > b.cgpa;   // highest CGPA first
     if (a.batchYear != b.batchYear) return a.batchYear < b.batchYear;
     return a.timestamp < b.timestamp;
+}
+
+inline bool operator==(const PriorityKey& a, const PriorityKey& b) {
+    return (a.cgpa == b.cgpa) &&
+           (a.batchYear == b.batchYear) &&
+           (a.timestamp == b.timestamp);
 }
 
 struct WaitlistEntry {
