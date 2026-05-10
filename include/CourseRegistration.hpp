@@ -3,6 +3,8 @@
 
 #include "RBTree.hpp"
 #include <string>
+#include <vector>
+#include <vector>
 
 struct PriorityKey {
     double cgpa;
@@ -34,6 +36,10 @@ public:
 class CourseRegistration {
 public:
     void addToWaitlist(const std::string& id, double cgpa, int batch, long long time);
+    void reprioritize(const std::string& id,
+                      double oldCgpa, int oldBatch, long long oldTime,
+                      double newCgpa, int newBatch, long long newTime);
+    std::vector<std::string> topKFromBatch(int batchYear, size_t k) const;
     CourseWaitlist waitlist;
 };
 
