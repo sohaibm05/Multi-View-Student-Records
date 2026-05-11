@@ -205,8 +205,7 @@ static void eventMenu(EventScheduler& events) {
             }
         } else if (choice == 2) {
             int id = readInt("Event ID: ");
-            long long start = readLong("Event start value: ");
-            std::cout << (events.removeEvent(id, start) ? "Event removed.\n" : "Event not found.\n");
+            std::cout << (events.removeEvent(id) ? "Event removed.\n" : "Event not found.\n");
         } else if (choice == 3) {
             long long start = readLong("Query start: ");
             long long end = readLong("Query end: ");
@@ -248,17 +247,18 @@ static void libraryMenu(LibraryManager& library) {
             std::string author = readLine("Author: ");
             std::cout << (library.addBook(title, author) ? "Book added as available with due date N/A.\n" : "Could not add book.\n");
         } else if (choice == 2) {
-            std::string title = readLine("Book title/name to checkout: ");
-            long long dueDate = readLong("Due date (DDMMYYYY, e.g. 31052025): ");
-            bool ok = library.checkoutBookByTitle(title, dueDate);
+            int id = readInt("Book ID to checkout: ");
+            long long today = readLong("Today/checkout date (DDMMYYYY, e.g. 12052025): ");
+            bool ok = library.checkoutBook(id, today);
             if (ok) {
-                std::cout << "Book checked out. Due date = " << LibraryManager::displayDate(LibraryManager::pakToInternal(dueDate)) << "\n";
+                long long due = LibraryManager::addDaysToDate(LibraryManager::pakToInternal(today), 30);
+                std::cout << "Book checked out. Due date = " << LibraryManager::displayDate(due) << "\n";
             } else {
                 std::cout << "Book not found, not available, or already checked out.\n";
             }
         } else if (choice == 3) {
-            std::string title = readLine("Book title/name to return: ");
-            std::cout << (library.returnBookByTitle(title) ? "Book returned. Due date is now N/A.\n" : "Book not found or already available.\n");
+            int id = readInt("Book ID to return: ");
+            std::cout << (library.returnBook(id) ? "Book returned. Due date is now N/A.\n" : "Book not found or already available.\n");
         } else if (choice == 4) {
             std::cout << "Currently available books: " << library.availableCount() << "\n";
         } else if (choice == 5) {
