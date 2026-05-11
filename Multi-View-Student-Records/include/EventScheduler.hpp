@@ -48,7 +48,8 @@ private:
 public:
     EventScheduler();
     bool addEvent(const std::string& title, long long start, long long end, const std::string& location);
-    bool removeEvent(int id, long long start);
+    bool removeEvent(int id);
+    bool removeEvent(int id, long long start); // compatibility overload
     bool hasConflict(long long start, long long end) const;
     bool findFirstConflict(long long start, long long end, Event& conflict) const;
     std::vector<Event> allConflicts(long long start, long long end) const;
