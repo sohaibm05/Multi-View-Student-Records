@@ -15,6 +15,21 @@ bool EventScheduler::addEvent(const std::string& title, long long start, long lo
     return ok;
 }
 
+bool EventScheduler::removeEvent(int id) {
+    EventKey keyToRemove{0, -1};
+    bool found = false;
+
+    events.inorder([&](auto node) {
+        if (!found && node->value.id == id) {
+            keyToRemove = node->key;
+            found = true;
+        }
+    });
+
+    if (!found) return false;
+    return events.erase(keyToRemove);
+}
+
 bool EventScheduler::removeEvent(int id, long long start) {
     return events.erase(EventKey{start, id});
 }
