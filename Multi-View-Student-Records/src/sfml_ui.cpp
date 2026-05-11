@@ -178,6 +178,7 @@ static std::string helpText(int tab) {
     if (tab == 1) {
         return "Event Scheduler tab\n"
                "Add Event: title,start,end,location\n"
+               "Remove Event: eventId only\n"
                "Show All Conflicts: start,end\n"
                "Range Query: start,end\n"
                "Next Event needs no input";
@@ -185,8 +186,8 @@ static std::string helpText(int tab) {
     if (tab == 2) {
         return "Library Management tab\n"
                "Add Book: title,author\n"
-               "Checkout Book: bookTitle,dueDate(DDMMYYYY), e.g. CLRS,31052025\n"
-               "Return Book: bookTitle/name only\n"
+               "Checkout Book: bookId,todayDate(DDMMYYYY), e.g. 1,12052025\n"
+               "Return Book: bookId only\n"
                "Available Count: no input needed\n"
                "Due Range: d1,d2 in DDMMYYYY for checked-out books\n"
                "Overdue Books: todayDate in DDMMYYYY";
@@ -254,6 +255,11 @@ static std::string runAction(const std::string& action, const std::string& input
             } else {
                 out << "Event not added.";
             }
+        } else if (action == "remove_event") {
+            if (input.empty()) return "Format: eventId";
+            int id = std::stoi(input);
+            bool ok = events.removeEvent(id);
+            out << (ok ? "Event removed." : "Event not found.");
         } else if (action == "all_conflicts") {
             auto p = split(input, ',');
             if (p.size() != 2) return "Format: start,end";
@@ -299,14 +305,19 @@ static std::string runAction(const std::string& action, const std::string& input
             if (list.empty()) out << "No overdue books.\n";
         } else if (action == "checkout") {
             auto p = split(input, ',');
-            if (p.size() != 2) return "Format: bookTitle,dueDate(DDMMYYYY), example: CLRS,31052025";
-            long long dueDate = std::stoll(p[1]);
-            bool ok = library.checkoutBookByTitle(p[0], dueDate);
-            if (ok) out << "Book checked out. Due date = " << LibraryManager::displayDate(LibraryManager::pakToInternal(dueDate));
-            else out << "Book not found, not available, or already checked out.";
+            if (p.size() != 2) return "Format: bookId,todayDate(DDMMYYYY), example: 1,12052025";
+            int id = std::stoi(p[0]);
+            long long today = std::stoll(p[1]);
+            bool ok = library.checkoutBook(id, today);
+            if (ok) {
+                long long due = LibraryManager::addDaysToDate(LibraryManager::pakToInternal(today), 30);
+                out << "Book checked out. Due date = " << LibraryManager::displayDate(due);
+            } else {
+                out << "Book not found, not available, or already checked out.";
+            }
         } else if (action == "return") {
-            if (input.empty()) return "Format: bookTitle/name";
-            bool ok = library.returnBookByTitle(input);
+            if (input.empty()) return "Format: bookId";
+            bool ok = library.returnBook(std::stoi(input));
             out << (ok ? "Book returned. Due date is now N/A." : "Book not found or already available.");
         } else if (action == "add_wait") {
             auto p = split(input, ',');
@@ -366,6 +377,7 @@ static void addButtonsForTab(std::vector<Button>& buttons, const sf::Font& font,
     } else if (tab == 1) {
         buttons.push_back(makeButton(font, "Show All Events", "show_events", tab, x, y, w, h)); y += h + gap;
         buttons.push_back(makeButton(font, "Add Event", "add_event", tab, x, y, w, h)); y += h + gap;
+        buttons.push_back(makeButton(font, "Remove Event", "remove_event", tab, x, y, w, h)); y += h + gap;
         buttons.push_back(makeButton(font, "Show All Conflicts", "all_conflicts", tab, x, y, w, h)); y += h + gap;
         buttons.push_back(makeButton(font, "Event Range Query", "event_range", tab, x, y, w, h)); y += h + gap;
         buttons.push_back(makeButton(font, "Next Event", "next_event", tab, x, y, w, h));
@@ -376,7 +388,7 @@ static void addButtonsForTab(std::vector<Button>& buttons, const sf::Font& font,
         buttons.push_back(makeButton(font, "Checked-Out Due Range", "due_range", tab, x, y, w, h)); y += h + gap;
         buttons.push_back(makeButton(font, "Overdue Books", "overdue", tab, x, y, w, h)); y += h + gap;
         buttons.push_back(makeButton(font, "Checkout Book", "checkout", tab, x, y, w, h)); y += h + gap;
-        buttons.push_back(makeButton(font, "Return Book by Name", "return", tab, x, y, w, h));
+        buttons.push_back(makeButton(font, "Return Book", "return", tab, x, y, w, h));
     } else {
         buttons.push_back(makeButton(font, "Add to Waitlist", "add_wait", tab, x, y, w, h)); y += h + gap;
         buttons.push_back(makeButton(font, "Show Course Waitlist", "show_wait", tab, x, y, w, h)); y += h + gap;
