@@ -311,23 +311,38 @@ static std::string runAction(const std::string& action, const std::string& input
         } else if (action == "add_wait") {
             auto p = split(input, ',');
             if (p.size() != 2) return "Format: courseCode,studentId";
+            std::string code = p[0];
+            for (char& c : code) c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
             Student* s = students.findById(std::stoi(p[1]));
             if (!s) return "Student ID not found. Add student first or load sample data.";
-            bool ok = courses.addToWaitlist(p[0], *s);
+            bool ok = courses.addToWaitlist(code, *s);
             out << (ok ? "Student added to waitlist." : "Student already in waitlist.");
         } else if (action == "show_wait") {
-            auto list = courses.courseWaitlist(input);
-            out << "Waitlist for " << input << ":\n";
-            for (const WaitlistEntry& w : list) out << waitLine(w) << "\n";
-            if (list.empty()) out << "No waitlist entries.\n";
+            if (input.empty()) {
+                auto all = courses.allWaitlistEntries();
+                out << "All waitlist entries:\n";
+                for (const WaitlistEntry& w : all) out << waitLine(w) << "\n";
+                if (all.empty()) out << "No waitlist entries. Click Load Sample Data first.\n";
+            } else {
+                std::string code = input;
+                for (char& c : code) c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
+                auto list = courses.courseWaitlist(code);
+                out << "Waitlist for " << code << ":\n";
+                for (const WaitlistEntry& w : list) out << waitLine(w) << "\n";
+                if (list.empty()) out << "No waitlist entries for \"" << code << "\". Leave empty to show all.\n";
+            }
         } else if (action == "promote") {
+            std::string code = input;
+            for (char& c : code) c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
             WaitlistEntry w;
-            if (courses.promoteFront(input, w)) out << "Promoted: " << waitLine(w);
+            if (courses.promoteFront(code, w)) out << "Promoted: " << waitLine(w);
             else out << "No student available for this course.";
         } else if (action == "cross") {
             auto p = split(input, ',');
             if (p.size() != 3) return "Format: courseCode,batchYear,limit";
-            auto list = courses.topWaitlistedFromBatch(p[0], std::stoi(p[1]), std::stoi(p[2]));
+            std::string code = p[0];
+            for (char& c : code) c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
+            auto list = courses.topWaitlistedFromBatch(code, std::stoi(p[1]), std::stoi(p[2]));
             out << "Top waitlisted from batch " << p[1] << ":\n";
             for (const WaitlistEntry& w : list) out << waitLine(w) << "\n";
             if (list.empty()) out << "No matches.\n";
@@ -455,11 +470,9 @@ int main() {
                 }
             }
 
-            if (typing && ev.type == sf::Event::TextEntered) {
+            if (ev.type == sf::Event::TextEntered) {
                 if (ev.text.unicode == 8) {
                     if (!input.empty()) input.pop_back();
-                } else if (ev.text.unicode == 13) {
-                    typing = false;
                 } else if (ev.text.unicode >= 32 && ev.text.unicode < 127) {
                     input.push_back(static_cast<char>(ev.text.unicode));
                 }

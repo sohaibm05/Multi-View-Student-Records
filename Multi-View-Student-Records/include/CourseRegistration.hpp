@@ -57,6 +57,7 @@ public:
     WaitlistEntry* front(const std::string& courseCode);
     bool promoteFront(const std::string& courseCode, WaitlistEntry& promoted);
     std::vector<WaitlistEntry> courseWaitlist(const std::string& courseCode) const;
+    std::vector<WaitlistEntry> allWaitlistEntries() const;
     std::vector<WaitlistEntry> topWaitlistedFromBatch(const std::string& courseCode, int batchYear, int limit) const;
     int size() const;
     void printAll() const;

@@ -2,11 +2,15 @@
 
 CourseRegistration::CourseRegistration() : currentTime(1) {}
 
-WaitlistKey CourseRegistration::makeKey(const WaitlistEntry& e) {
+WaitlistKey CourseRegistration::makeKey(const WaitlistEntry& e) 
+{
     return WaitlistKey{e.courseCode, -e.cgpa, e.batchYear, e.timestamp, e.studentId};
 }
 
 bool CourseRegistration::addToWaitlist(const std::string& courseCode, const Student& student) {
+    std::vector<WaitlistEntry> existing = courseWaitlist(courseCode);
+    for (const WaitlistEntry& e : existing)
+        if (e.studentId == student.id) return false;
     WaitlistEntry e{student.id, courseCode, student.cgpa, student.batchYear, currentTime++};
     return waitlist.insert(makeKey(e), e);
 }
@@ -52,6 +56,12 @@ std::vector<WaitlistEntry> CourseRegistration::courseWaitlist(const std::string&
     waitlist.inorder([&](auto node) {
         if (node->value.courseCode == courseCode) ans.push_back(node->value);
     });
+    return ans;
+}
+
+std::vector<WaitlistEntry> CourseRegistration::allWaitlistEntries() const {
+    std::vector<WaitlistEntry> ans;
+    waitlist.inorder([&](auto node) { ans.push_back(node->value); });
     return ans;
 }
 
