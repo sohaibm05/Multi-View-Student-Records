@@ -79,37 +79,6 @@ static void loadSampleData(StudentRecords& students, EventScheduler& events,
     std::cout << "Sample data loaded.\n";
 }
 
-static void runBenchmarks() {
-    StudentRecords treeStudents;
-    std::vector<Student> vectorStudents;
-    const int n = 5000;
-
-    for (int i = 1; i <= n; i++) {
-        double cgpa = 2.0 + (i % 200) / 100.0;
-        int batch = 2020 + (i % 5);
-        std::string name = "Student" + std::to_string(i);
-        treeStudents.addStudent(i, name, cgpa, batch);
-        vectorStudents.push_back(Student{i, name, cgpa, batch});
-    }
-
-    auto t1 = std::chrono::high_resolution_clock::now();
-    int treeCount = treeStudents.countCgpaInRange(3.0, 3.5);
-    auto t2 = std::chrono::high_resolution_clock::now();
-
-    auto v1 = std::chrono::high_resolution_clock::now();
-    int vectorCount = 0;
-    for (const Student& s : vectorStudents) {
-        if (s.cgpa >= 3.0 && s.cgpa <= 3.5) vectorCount++;
-    }
-    auto v2 = std::chrono::high_resolution_clock::now();
-
-    auto treeTime = std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count();
-    auto vectorTime = std::chrono::duration_cast<std::chrono::microseconds>(v2 - v1).count();
-
-    std::cout << "Benchmark on " << n << " student records\n";
-    std::cout << "RBT count result: " << treeCount << ", time: " << treeTime << " microseconds\n";
-    std::cout << "Vector scan result: " << vectorCount << ", time: " << vectorTime << " microseconds\n";
-}
 
 static void studentMenu(StudentRecords& students) {
     int choice = -1;
@@ -205,7 +174,8 @@ static void eventMenu(EventScheduler& events) {
             }
         } else if (choice == 2) {
             int id = readInt("Event ID: ");
-            std::cout << (events.removeEvent(id) ? "Event removed.\n" : "Event not found.\n");
+            long long start = readLong("Event start value: ");
+            std::cout << (events.removeEvent(id, start) ? "Event removed.\n" : "Event not found.\n");
         } else if (choice == 3) {
             long long start = readLong("Query start: ");
             long long end = readLong("Query end: ");
@@ -245,37 +215,71 @@ static void libraryMenu(LibraryManager& library) {
         if (choice == 1) {
             std::string title = readLine("Book title: ");
             std::string author = readLine("Author: ");
-            std::cout << (library.addBook(title, author) ? "Book added as available with due date N/A.\n" : "Could not add book.\n");
+
+            std::cout << (library.addBook(title, author)
+                ? "Book added as available with due date N/A.\n"
+                : "Could not add book.\n");
+
         } else if (choice == 2) {
             int id = readInt("Book ID to checkout: ");
-            long long today = readLong("Today/checkout date (DDMMYYYY, e.g. 12052025): ");
-            bool ok = library.checkoutBook(id, today);
+            long long todayDate = readLong("Today's date (DDMMYYYY, e.g. 12052025): ");
+
+            bool ok = library.checkoutBook(id, todayDate);
+
             if (ok) {
-                long long due = LibraryManager::addDaysToDate(LibraryManager::pakToInternal(today), 30);
-                std::cout << "Book checked out. Due date = " << LibraryManager::displayDate(due) << "\n";
+                long long internalToday = LibraryManager::pakToInternal(todayDate);
+                long long dueDate = LibraryManager::addDaysToDate(internalToday, 30);
+
+                std::cout << "Book checked out.\n";
+                std::cout << "Due date = " << LibraryManager::displayDate(dueDate) << "\n";
             } else {
                 std::cout << "Book not found, not available, or already checked out.\n";
             }
+
         } else if (choice == 3) {
             int id = readInt("Book ID to return: ");
-            std::cout << (library.returnBook(id) ? "Book returned. Due date is now N/A.\n" : "Book not found or already available.\n");
+
+            std::cout << (library.returnBook(id)
+                ? "Book returned. Due date is now N/A.\n"
+                : "Book not found or already available.\n");
+
         } else if (choice == 4) {
             std::cout << "Currently available books: " << library.availableCount() << "\n";
+
         } else if (choice == 5) {
             long long d1 = readLong("Start due date (DDMMYYYY): ");
             long long d2 = readLong("End due date (DDMMYYYY): ");
+
             std::vector<Book> ans = library.checkedOutDueInRange(d1, d2);
+
             for (const Book& b : ans) {
-                std::cout << b.id << " | " << b.title << " | due " << LibraryManager::displayDate(b.dueDate) << " | Checked out\n";
+                std::cout << b.id << " | " << b.title << " | "
+                          << b.author << " | due "
+                          << LibraryManager::displayDate(b.dueDate)
+                          << " | Checked out\n";
             }
-            if (ans.empty()) std::cout << "No checked-out books due in this range.\n";
+
+            if (ans.empty()) {
+                std::cout << "No checked-out books due in this range.\n";
+            }
+
         } else if (choice == 6) {
             long long today = readLong("Today date (DDMMYYYY): ");
+
             std::vector<Book> ans = library.overdueBooks(today);
+
             for (const Book& b : ans) {
-                std::cout << b.id << " | " << b.title << " | due " << LibraryManager::displayDate(b.dueDate) << " | Fine " << library.estimateFine(b, today) << "\n";
+                std::cout << b.id << " | " << b.title << " | "
+                          << b.author << " | due "
+                          << LibraryManager::displayDate(b.dueDate)
+                          << " | Fine " << library.estimateFine(b, today)
+                          << "\n";
             }
-            if (ans.empty()) std::cout << "No overdue checked-out books.\n";
+
+            if (ans.empty()) {
+                std::cout << "No overdue checked-out books.\n";
+            }
+
         } else if (choice == 7) {
             library.printAll();
         }
@@ -371,9 +375,8 @@ static void mainMenu() {
     std::cout << "3. Library Management queries\n";
     std::cout << "4. Course Registration queries\n";
     std::cout << "5. Cross-subsystem query\n";
-    std::cout << "6. Run benchmark\n";
-    std::cout << "7. Load sample data\n";
-    std::cout << "8. Show all current data\n";
+    std::cout << "6. Load sample data\n";
+    std::cout << "7. Show all current data\n";
     std::cout << "0. Exit\n";
 }
 
@@ -395,9 +398,8 @@ int main() {
         else if (choice == 3) libraryMenu(library);
         else if (choice == 4) courseMenu(courses, students);
         else if (choice == 5) crossSubsystemMenu(courses, students);
-        else if (choice == 6) runBenchmarks();
-        else if (choice == 7) loadSampleData(students, events, library, courses);
-        else if (choice == 8) {
+        else if (choice == 6) loadSampleData(students, events, library, courses);
+        else if (choice == 7) {
             std::cout << "\nStudents:\n"; students.printAll();
             std::cout << "\nEvents:\n"; events.printAll();
             std::cout << "\nBooks:\n"; library.printAll();

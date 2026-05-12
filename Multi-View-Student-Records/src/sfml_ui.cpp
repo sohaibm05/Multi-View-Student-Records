@@ -185,12 +185,12 @@ static std::string helpText(int tab) {
     }
     if (tab == 2) {
         return "Library Management tab\n"
-               "Add Book: title,author\n"
-               "Checkout Book: bookId,todayDate(DDMMYYYY), e.g. 1,12052025\n"
-               "Return Book: bookId only\n"
-               "Available Count: no input needed\n"
-               "Due Range: d1,d2 in DDMMYYYY for checked-out books\n"
-               "Overdue Books: todayDate in DDMMYYYY";
+                "Add Book: title,author\n"
+                "Checkout Book: bookId,dueDate(DDMMYYYY), e.g. 1,31052025\n"
+                "Return Book: bookId only\n"
+                "Available Count: no input needed\n"
+                "Due Range: d1,d2 in DDMMYYYY for checked-out books\n"
+                "Overdue Books: todayDate in DDMMYYYY";
     }
     return "Course Registration tab\n"
            "Add Waitlist: courseCode,studentId\n"
@@ -303,17 +303,22 @@ static std::string runAction(const std::string& action, const std::string& input
             out << "Overdue checked-out books:\n";
             for (const Book& b : list) out << bookLine(b) << " | Fine " << library.estimateFine(b, today) << "\n";
             if (list.empty()) out << "No overdue books.\n";
-        } else if (action == "checkout") {
-            auto p = split(input, ',');
-            if (p.size() != 2) return "Format: bookId,todayDate(DDMMYYYY), example: 1,12052025";
-            int id = std::stoi(p[0]);
-            long long today = std::stoll(p[1]);
-            bool ok = library.checkoutBook(id, today);
-            if (ok) {
-                long long due = LibraryManager::addDaysToDate(LibraryManager::pakToInternal(today), 30);
-                out << "Book checked out. Due date = " << LibraryManager::displayDate(due);
-            } else {
-                out << "Book not found, not available, or already checked out.";
+        } } else if (action == "checkout") {
+                auto p = split(input, ',');
+                if (p.size() != 2) return "Format: bookId,dueDate(DDMMYYYY), example: 1,31052025";
+
+                int id = std::stoi(p[0]);
+                long long dueDate = std::stoll(p[1]);
+
+                bool ok = library.checkoutBook(id, dueDate);
+
+                if (ok) {
+                    long long internalDueDate = LibraryManager::pakToInternal(dueDate);
+                    out << "Book checked out. Due date = "
+                        << LibraryManager::displayDate(internalDueDate);
+                } else {
+                    out << "Book not found, not available, or already checked out.";
+                }
             }
         } else if (action == "return") {
             if (input.empty()) return "Format: bookId";
