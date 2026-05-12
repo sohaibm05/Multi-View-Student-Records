@@ -1,19 +1,30 @@
 #include "StudentRecords.hpp"
 #include <cctype>
 
-bool StudentRecords::startsWith(const std::string& text, const std::string& prefix) {
-    if (prefix.size() > text.size()) return false;
+bool StudentRecords::startsWith(const std::string& text, const std::string& prefix) 
+{
+    if (prefix.size() > text.size())
+    { 
+        return false;
+    }
 
-    for (size_t i = 0; i < prefix.size(); i++) {
+    for (size_t i = 0; i < prefix.size(); i++) 
+    {
         char a = static_cast<char>(std::tolower(static_cast<unsigned char>(text[i])));
         char b = static_cast<char>(std::tolower(static_cast<unsigned char>(prefix[i])));
-        if (a != b) return false;
+        if (a != b)
+        { 
+            return false;
+        }
     }
     return true;
 }
 
 bool StudentRecords::addStudent(int id, const std::string& name, double cgpa, int batchYear) {
-    if (byId.contains(id)) return false;
+    if (byId.contains(id))
+    { 
+        return false;
+    }
 
     Student temp{id, name, cgpa, batchYear};
     if (!byId.insert(id, temp)) return false;

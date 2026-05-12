@@ -42,9 +42,19 @@ struct BasicAugment {
     }
 };
 
+struct CourseStudentKey {
+    std::string courseCode;
+    int studentId;
+    bool operator<(const CourseStudentKey& other) const {
+        if (courseCode != other.courseCode) return courseCode < other.courseCode;
+        return studentId < other.studentId;
+    }
+};
+
 class CourseRegistration {
 private:
     RBTree<WaitlistKey, WaitlistEntry, std::less<WaitlistKey>, BasicAugment<WaitlistKey> > waitlist;
+    RBTree<CourseStudentKey, WaitlistKey> index;
     long long currentTime;
 
     static WaitlistKey makeKey(const WaitlistEntry& e);
