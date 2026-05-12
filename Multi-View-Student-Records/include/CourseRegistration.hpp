@@ -32,16 +32,6 @@ struct WaitlistKey {
     }
 };
 
-template <typename Key>
-struct BasicAugment {
-    void update(RBNode<Key, WaitlistEntry>* node, RBNode<Key, WaitlistEntry>* nil) const {
-        if (node == nil) return;
-        node->subtreeSize = node->left->subtreeSize + node->right->subtreeSize + 1;
-        node->maxEnd = 0;
-        node->subtreeBooks = 0;
-    }
-};
-
 struct CourseStudentKey {
     std::string courseCode;
     int studentId;
@@ -53,7 +43,7 @@ struct CourseStudentKey {
 
 class CourseRegistration {
 private:
-    RBTree<WaitlistKey, WaitlistEntry, std::less<WaitlistKey>, BasicAugment<WaitlistKey> > waitlist;
+    RBTree<WaitlistKey, WaitlistEntry> waitlist;
     RBTree<CourseStudentKey, WaitlistKey> index;
     long long currentTime;
 
