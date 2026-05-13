@@ -170,10 +170,14 @@ static std::string helpText(int tab) {
     if (tab == 0) {
         return "Student Records tab\n"
                "Add Student: id,name,cgpa,batch\n"
+               "Remove Student: id\n"
+               "Update CGPA: id,newCgpa\n"
+               "Find by ID: id\n"
                "Prefix Search: any name prefix, e.g. ali or AL\n"
                "Rank by CGPA: cgpa, e.g. 3.70\n"
                "k-th CGPA: k, e.g. 2\n"
-               "CGPA Range: low,high, e.g. 3.4,3.9";
+               "CGPA Range: low,high, e.g. 3.4,3.9\n"
+               "Students in Batch: batchYear, e.g. 2022";
     }
     if (tab == 1) {
         return "Event Scheduler tab\n"
@@ -228,13 +232,28 @@ static std::string runAction(const std::string& action, const std::string& input
             Student* s = students.kthSmallestCgpa(k);
             if (s) out << "k-th lowest CGPA student: " << studentLine(*s);
             else out << "Invalid k.";
-        } else if (action == "cgpa_range") {
+                } else if (action == "remove_student") {
+            int id = std::stoi(input);
+            bool ok = students.removeStudent(id);
+            out << (ok ? "Student removed successfully." : "Student not found.");
+        } else if (action == "update_cgpa") {
             auto p = split(input, ',');
-            if (p.size() != 2) return "Format: low,high";
-            auto list = students.studentsInCgpaRange(std::stod(p[0]), std::stod(p[1]));
-            out << "Students in CGPA range:\n";
+            if (p.size() != 2) return "Format: studentId,newCgpa";
+            int id = std::stoi(p[0]);
+            double newCgpa = std::stod(p[1]);
+            bool ok = students.updateCgpa(id, newCgpa);
+            out << (ok ? "CGPA updated successfully." : "Student not found.");
+        } else if (action == "find_id") {
+            int id = std::stoi(input);
+            Student* s = students.findById(id);
+            if (s) out << "Found: " << studentLine(*s);
+            else out << "Student not found.";
+        } else if (action == "batch_query") {
+            int batch = std::stoi(input);
+            auto list = students.studentsInBatch(batch);
+            out << "Students in batch " << batch << ":\n";
             for (const Student& s : list) out << studentLine(s) << "\n";
-            out << "Count = " << list.size();
+            if (list.empty()) out << "No students in this batch.";
         } else if (action == "show_events") {
             auto list = events.allEvents();
             out << "All events:\n";
@@ -375,10 +394,14 @@ static void addButtonsForTab(std::vector<Button>& buttons, const sf::Font& font,
     if (tab == 0) {
         buttons.push_back(makeButton(font, "Show All Students", "show_students", tab, x, y, w, h)); y += h + gap;
         buttons.push_back(makeButton(font, "Add Student", "add_student", tab, x, y, w, h)); y += h + gap;
+        buttons.push_back(makeButton(font, "Remove Student", "remove_student", tab, x, y, w, h)); y += h + gap;
+        buttons.push_back(makeButton(font, "Update CGPA", "update_cgpa", tab, x, y, w, h)); y += h + gap;
+        buttons.push_back(makeButton(font, "Find by ID", "find_id", tab, x, y, w, h)); y += h + gap;
         buttons.push_back(makeButton(font, "Prefix Search Name", "prefix", tab, x, y, w, h)); y += h + gap;
         buttons.push_back(makeButton(font, "Rank by CGPA", "rank", tab, x, y, w, h)); y += h + gap;
         buttons.push_back(makeButton(font, "k-th Lowest CGPA", "kth", tab, x, y, w, h)); y += h + gap;
-        buttons.push_back(makeButton(font, "CGPA Range Query", "cgpa_range", tab, x, y, w, h));
+        buttons.push_back(makeButton(font, "CGPA Range Query", "cgpa_range", tab, x, y, w, h)); y += h + gap;
+        buttons.push_back(makeButton(font, "Students in Batch", "batch_query", tab, x, y, w, h));
     } else if (tab == 1) {
         buttons.push_back(makeButton(font, "Show All Events", "show_events", tab, x, y, w, h)); y += h + gap;
         buttons.push_back(makeButton(font, "Add Event", "add_event", tab, x, y, w, h)); y += h + gap;
