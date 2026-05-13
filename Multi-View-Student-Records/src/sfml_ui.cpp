@@ -322,23 +322,13 @@ static std::string runAction(const std::string& action, const std::string& input
             out << "Overdue checked-out books:\n";
             for (const Book& b : list) out << bookLine(b) << " | Fine " << library.estimateFine(b, today) << "\n";
             if (list.empty()) out << "No overdue books.\n";
-        } } else if (action == "checkout") {
-                auto p = split(input, ',');
-                if (p.size() != 2) return "Format: bookId,dueDate(DDMMYYYY), example: 1,31052025";
-
-                int id = std::stoi(p[0]);
-                long long dueDate = std::stoll(p[1]);
-
-                bool ok = library.checkoutBook(id, dueDate);
-
-                if (ok) {
-                    long long internalDueDate = LibraryManager::pakToInternal(dueDate);
-                    out << "Book checked out. Due date = "
-                        << LibraryManager::displayDate(internalDueDate);
-                } else {
-                    out << "Book not found, not available, or already checked out.";
-                }
-            }
+        } else if (action == "checkout") {
+            auto p = split(input, ',');
+            if (p.size() != 2) return "Format: bookTitle,dueDate(DDMMYYYY), example: CLRS,31052025";
+            long long dueDate = std::stoll(p[1]);
+            bool ok = library.checkoutBookByTitle(p[0], dueDate);
+            if (ok) out << "Book checked out. Due date = " << LibraryManager::displayDate(LibraryManager::pakToInternal(dueDate));
+            else out << "Book not found, not available, or already checked out.";
         } else if (action == "return") {
             if (input.empty()) return "Format: bookId";
             bool ok = library.returnBook(std::stoi(input));
